@@ -1665,7 +1665,6 @@ async function verifyCaptcha(token) {
     if (!dbClient) return false;
     
     try {
-        // dbClient.functions.invoke 대신 fetch를 직접 사용하여 호출 (CORS 및 에러 디버깅 용이)
         const functionUrl = `${SUPABASE_URL}/functions/v1/verify-captcha`;
         
         const response = await fetch(functionUrl, {
@@ -1679,43 +1678,31 @@ async function verifyCaptcha(token) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("Edge Function Error:", errorText);
-            
-            // 400, 500 에러 처리
             try {
                 const errJson = JSON.parse(errorText);
-                alert("서버 오류: " + (errJson.error || "알 수 없는 오류"));
+                alert("서버 오류: " + (errJson.error || errorText));
             } catch (e) {
-                alert(`서버 연결 실패 (${response.status})`);
+                alert(`서버 연결 실패 (${response.status}): ${errorText}`);
             }
             return false;
         }
 
         const data = await response.json();
-        console.log("구글 응답 데이터:", data);
 
         if (!data || !data.success) {
-            const errorCodes = data['error-codes'] || [];
-            let msg = "캡차 검증 실패 (봇 의심)";
-            if (errorCodes.includes('invalid-input-secret')) msg += "\n원인: 비밀키(Secret Key)가 잘못되었습니다.";
-            else if (errorCodes.includes('invalid-input-response')) msg += "\n원인: 토큰이 유효하지 않거나 만료되었습니다.";
-            else if (errorCodes.includes('missing-input-secret')) msg += "\n원인: 비밀키가 설정되지 않았습니다.";
-            
-            console.error("Captcha Verification Failed:", data);
-            alert(msg);
+            alert("캡차 검증 실패 (구글 응답):\n" + JSON.stringify(data, null, 2));
             return false;
         }
         
         if (data.score !== undefined && data.score < 0.5) {
-             alert(`캡차 점수가 너무 낮습니다. (${data.score})`);
+             alert(`캡차 점수 미달 (${data.score})`);
              return false;
         }
 
         return true;
 
     } catch (e) {
-        console.error("Network/Captcha error:", e);
-        alert("네트워크 오류로 캡차 검증에 실패했습니다.");
+        alert("네트워크/검증 오류: " + e.message);
         return false;
     }
 }
@@ -1740,7 +1727,7 @@ async function submitComment() {
             if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
             
             const isVerified = await verifyCaptcha(token);
-            if (!isVerified) return; // 캡차 실패 시 중단
+            if (!isVerified) return; 
             
         } catch (e) {
             console.error("Captcha error:", e);
