@@ -357,11 +357,14 @@
                         <button onclick="cancelReply()" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
-                    <div class="flex flex-col md:flex-row gap-3 mb-3">
-                        <input type="text" id="cmtName" name="comment_name_no_save" maxlength="12" class="w-full md:w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="닉네임" autocomplete="off">
-                        <input type="password" id="cmtPw" name="comment_pw_no_save" maxlength="10" class="w-full md:w-32 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="비밀번호" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                    <form onsubmit="return false;" autocomplete="off" class="flex flex-col md:flex-row gap-3 mb-3">
+                        <input type="text" style="display:none" autocomplete="username">
+                        <input type="password" style="display:none" autocomplete="current-password">
+                        
+                        <input type="text" id="cmtName" maxlength="12" class="w-full md:w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="닉네임" autocomplete="off">
+                        <input type="password" id="cmtPw" maxlength="10" class="w-full md:w-32 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="비밀번호" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
                         <button id="btn-cmt-cancel" onclick="cancelCommentEdit()" class="hidden px-4 py-2 bg-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-300">수정 취소</button>
-                    </div>
+                    </form>
                     
                     <div id="cmt-drop-zone" class="border border-slate-200 rounded-xl bg-white overflow-hidden focus-within:border-blue-500 transition shadow-sm relative">
                         <div id="drop-zone-overlay" class="absolute inset-0 bg-blue-50/90 z-20 hidden flex flex-col items-center justify-center text-blue-600 font-bold pointer-events-none backdrop-blur-sm">
@@ -398,16 +401,19 @@
                     <label for="checkPinned" class="text-sm font-bold text-slate-700">📌 이 글을 상단에 고정 (강조)</label>
                 </div>
                 <input type="text" id="inputTitle" maxlength="100" class="w-full text-3xl font-extrabold text-slate-900 placeholder-slate-300 outline-none border-b border-transparent focus:border-blue-200 pb-2" placeholder="제목을 입력하세요" autocomplete="off">
-                <div class="flex flex-col md:flex-row gap-4">
+                <form onsubmit="return false;" autocomplete="off" class="flex flex-col md:flex-row gap-4">
+                    <input type="text" style="display:none" autocomplete="username">
+                    <input type="password" style="display:none" autocomplete="current-password">
+                    
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-slate-500 mb-1">닉네임</label>
-                        <input type="text" id="inputName" name="writer_name_no_save" maxlength="12" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 disabled:bg-slate-100 disabled:text-slate-500" placeholder="한글/숫자" autocomplete="off">
+                        <input type="text" id="inputName" maxlength="12" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 disabled:bg-slate-100 disabled:text-slate-500" placeholder="한글/숫자" autocomplete="off">
                     </div>
                     <div class="w-full md:w-48" id="pw-container">
                         <label class="block text-xs font-bold text-slate-500 mb-1">비밀번호</label>
-                        <input type="password" id="inputPw" name="writer_pw_no_save" maxlength="10" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400" placeholder="영문/숫자" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                        <input type="password" id="inputPw" maxlength="10" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400" placeholder="영문/숫자" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
                     </div>
-                </div>
+                </form>
                 
                 <div class="editor-wrapper">
                     <div class="flex border-b border-slate-200 bg-slate-50">
@@ -508,8 +514,8 @@
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-modal">
                 <h3 class="text-lg font-bold text-slate-900 mb-4">관리자 접속</h3>
-                <input type="email" id="adminEmail" name="admin_id_no_save" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2 outline-none focus:border-red-500" placeholder="이메일" autocomplete="off">
-                <input type="password" id="adminPw" name="admin_pw_no_save" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 outline-none focus:border-red-500 font-mono" placeholder="비밀번호" onkeyup="if(event.key==='Enter') tryAdminLogin()" autocomplete="off">
+                <input type="email" id="adminEmail" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2 outline-none focus:border-red-500" placeholder="이메일" autocomplete="off">
+                <input type="password" id="adminPw" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 outline-none focus:border-red-500 font-mono" placeholder="비밀번호" onkeyup="if(event.key==='Enter') tryAdminLogin()" autocomplete="off">
                 <button onclick="tryAdminLogin()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-red-600">로그인</button>
             </div>
         </div>
@@ -524,7 +530,14 @@
                 </div>
                 <h3 class="font-bold text-lg mb-2 text-slate-800">비밀번호 확인</h3>
                 <p class="text-sm text-slate-500 mb-6">작성 시 입력한 비밀번호를 입력하세요.</p>
-                <input type="password" id="verificationPw" name="verify_pw_no_save" class="w-full border border-slate-300 rounded-xl px-4 py-3 mb-6 outline-none focus:border-blue-500 font-mono text-center" placeholder="Password" onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmPasswordAction(); }" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                
+                <form onsubmit="return false;" autocomplete="off">
+                    <input type="text" style="display:none" autocomplete="username">
+                    <input type="password" style="display:none" autocomplete="current-password">
+                    
+                    <input type="password" id="verificationPw" class="w-full border border-slate-300 rounded-xl px-4 py-3 mb-6 outline-none focus:border-blue-500 font-mono text-center" placeholder="Password" onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmPasswordAction(); }" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')">
+                </form>
+
                 <div class="flex gap-3">
                     <button onclick="closePasswordModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition">취소</button>
                     <button onclick="confirmPasswordAction()" class="flex-1 py-3 rounded-xl bg-blue-600 font-bold text-white hover:bg-blue-500 transition shadow-lg shadow-blue-500/30">확인</button>
