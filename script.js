@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
+// reCAPTCHA v3 사이트 키 (공개키)
 const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6';
 
 const ENABLE_SNOW = true; 
@@ -188,6 +189,7 @@ let isAlertOpen = false;
 let isSnowInitialized = false;
 let isBanned = false;
 
+// 페이지네이션 변수
 let currentPage = 1;
 let totalCount = 0;
 
@@ -339,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// 게시글 목록 가져오기 (페이지네이션 적용)
 async function fetchPosts(type, page = 1) {
     if (!dbClient) {
         loadLocalPosts();
@@ -356,6 +359,7 @@ async function fetchPosts(type, page = 1) {
     
     const keyword = document.getElementById('boardSearchInput').value.trim();
     
+    // Supabase 쿼리 작성
     let query = dbClient
         .from('posts')
         .select('*, comments(*)', { count: 'exact' }) 
@@ -398,11 +402,13 @@ async function fetchPosts(type, page = 1) {
     if(spinner) spinner.classList.add('hidden');
 }
 
+// 페이지 변경 함수 (일반 게시판)
 function changePage(page) {
     if (page < 1) return;
     fetchPosts(currentBoardType, page);
 }
 
+// 페이지네이션 버튼 렌더링 (일반 게시판)
 function renderPagination() {
     const container = document.getElementById('pagination-container');
     if (!container) return;
@@ -439,6 +445,7 @@ function renderPagination() {
     container.appendChild(nextBtn);
 }
 
+// 관리자용 페이지네이션 렌더링 함수 (공통 사용)
 function renderAdminPagination(containerId, totalItems, currentPage, pageSize, changePageCallback) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -451,6 +458,7 @@ function renderAdminPagination(containerId, totalItems, currentPage, pageSize, c
     const startPage = Math.floor((currentPage - 1) / maxButtons) * maxButtons + 1;
     const endPage = Math.min(startPage + maxButtons - 1, totalPages);
 
+    // Prev
     const prevBtn = document.createElement('button');
     prevBtn.className = "pagination-btn";
     prevBtn.disabled = currentPage === 1;
@@ -458,6 +466,7 @@ function renderAdminPagination(containerId, totalItems, currentPage, pageSize, c
     prevBtn.onclick = () => changePageCallback(currentPage - 1);
     container.appendChild(prevBtn);
 
+    // Numbers
     for (let i = startPage; i <= endPage; i++) {
         const btn = document.createElement('button');
         btn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
@@ -466,6 +475,7 @@ function renderAdminPagination(containerId, totalItems, currentPage, pageSize, c
         container.appendChild(btn);
     }
 
+    // Next
     const nextBtn = document.createElement('button');
     nextBtn.className = "pagination-btn";
     nextBtn.disabled = currentPage === totalPages;
@@ -580,7 +590,7 @@ async function fetchDeletedPosts() {
     
     if (!data || data.length === 0) {
         noData.classList.remove('hidden');
-        document.getElementById('pagination-deleted-posts').innerHTML = ''; 
+        document.getElementById('pagination-deleted-posts').innerHTML = ''; // 페이지네이션 삭제
         return;
     }
     noData.classList.add('hidden');
@@ -592,7 +602,7 @@ async function fetchDeletedPosts() {
 
 function renderDeletedPosts() {
     const list = document.getElementById('deleted-posts-list');
-    list.innerHTML = ''; 
+    list.innerHTML = ''; // 리스트 초기화
 
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
@@ -640,6 +650,7 @@ function renderDeletedPosts() {
         list.appendChild(div);
     });
 
+    // 페이지네이션 렌더링
     renderAdminPagination('pagination-deleted-posts', deletedPostsData.length, deletedPostPage + 1, ADMIN_PAGE_SIZE, (newPage) => {
         deletedPostPage = newPage - 1;
         renderDeletedPosts();
@@ -665,7 +676,7 @@ async function fetchDeletedComments() {
     
     if (!data || data.length === 0) {
         noData.classList.remove('hidden');
-        document.getElementById('pagination-deleted-comments').innerHTML = ''; 
+        document.getElementById('pagination-deleted-comments').innerHTML = ''; // 페이지네이션 삭제
         return;
     }
     noData.classList.add('hidden');
@@ -677,7 +688,7 @@ async function fetchDeletedComments() {
 
 function renderDeletedComments() {
     const list = document.getElementById('deleted-comments-list');
-    list.innerHTML = ''; 
+    list.innerHTML = ''; // 리스트 초기화
 
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
@@ -727,6 +738,7 @@ function renderDeletedComments() {
         list.appendChild(div);
     });
 
+    // 페이지네이션 렌더링
     renderAdminPagination('pagination-deleted-comments', deletedCommentsData.length, deletedCommentPage + 1, ADMIN_PAGE_SIZE, (newPage) => {
         deletedCommentPage = newPage - 1;
         renderDeletedComments();
@@ -1122,10 +1134,8 @@ async function readPost(id, directData = null) {
                 const targetPost = posts.find(p => p.id == id);
                 if (targetPost) {
                     targetPost.views = (targetPost.views || 0) + 1; 
+                    dbClient.from('posts').update({ views: targetPost.views }).eq('id', id).then(() => {});
                 }
-                const viewsEl = document.getElementById('detail-views');
-                if(viewsEl && targetPost) viewsEl.innerText = targetPost.views;
-                
                 sessionStorage.setItem(viewedKey, 'true');
             } else {
                 console.warn("View increment failed (DB function missing?):", error.message);
@@ -1662,10 +1672,34 @@ async function verifyCaptcha(token) {
         const { data, error } = await dbClient.functions.invoke('verify-captcha', {
             body: { token }
         });
-        if (error || !data || !data.success) {
-            console.error("Captcha verification failed:", error || data);
+        
+        if (error) {
+            console.error("Edge Function Error:", error);
+            alert("서버 연결 오류: " + error.message);
             return false;
         }
+
+        console.log("구글 응답 데이터:", data); // 개발자 도구 콘솔 확인용
+
+        if (!data || !data.success) {
+            // 에러 코드 확인
+            const errorCodes = data['error-codes'] || [];
+            let msg = "캡차 검증 실패 (봇 의심)";
+            if (errorCodes.includes('invalid-input-secret')) msg += "\n원인: 비밀키(Secret Key)가 잘못되었습니다.";
+            else if (errorCodes.includes('invalid-input-response')) msg += "\n원인: 토큰이 유효하지 않거나 만료되었습니다.";
+            else if (errorCodes.includes('missing-input-secret')) msg += "\n원인: 비밀키가 설정되지 않았습니다.";
+            
+            console.error("Captcha Verification Failed:", data);
+            alert(msg);
+            return false;
+        }
+        
+        // v3의 경우 score 점수도 확인 가능 (보통 0.5 이상이면 통과)
+        if (data.score !== undefined && data.score < 0.5) {
+             alert(`캡차 점수가 너무 낮습니다. (${data.score})`);
+             return false;
+        }
+
         return true;
     } catch (e) {
         console.error("Captcha invoke error:", e);
@@ -1693,7 +1727,7 @@ async function submitComment() {
             if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
             
             const isVerified = await verifyCaptcha(token);
-            if (!isVerified) return showAlert("캡차 검증에 실패했습니다. (봇 의심)");
+            if (!isVerified) return; // 캡차 실패 시 중단
             
         } catch (e) {
             console.error("Captcha error:", e);
@@ -2326,7 +2360,7 @@ async function submitPost() {
             if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
             
             const isVerified = await verifyCaptcha(token);
-            if (!isVerified) return showAlert("캡차 검증에 실패했습니다. (봇 의심)");
+            if (!isVerified) return; // 캡차 실패 시 중단 (알림은 verifyCaptcha 안에서 띄움)
             
         } catch (e) {
             console.error("Captcha error:", e);
