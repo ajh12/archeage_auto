@@ -195,13 +195,14 @@ renderer.link = function(href, title, text) {
         const urlObj = new URL(cleanHref);
         const h = urlObj.hostname.toLowerCase();
         
-        const allowedDomains = ['.com', '.net', '.co.kr'];
-        const isAllowed = allowedDomains.some(domain => h.endsWith(domain));
+        const isYoutube = h.includes('youtube.com') || h.includes('youtu.be');
+        const isGithub = h.includes('github.com');
+        const isCommon = h.endsWith('.com') || h.endsWith('.net') || h.endsWith('.co.kr');
 
-        if (!isAllowed) {
-            return `<span class="text-slate-500 underline decoration-dotted cursor-help" title="연결되지 않는 링크입니다">${cleanText}</span>`;
+        if (!isYoutube && !isGithub && !isCommon) {
+             return `<span class="text-slate-500 underline decoration-dotted cursor-help" title="연결되지 않는 링크입니다">${cleanText}</span>`;
         }
-
+        
         const titleAttr = cleanTitle ? ` title="${cleanTitle}"` : '';
         return `<a href="${cleanHref}" target="_blank"${titleAttr} class="external-link">${cleanText}</a>`;
 
@@ -223,8 +224,6 @@ function escapeHtml(text) {
 
 function sanitizeContent(html) { 
     return DOMPurify.sanitize(html, { 
-        ADD_TAGS: ['iframe', 'div'],
-        ADD_ATTR: ['target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'onclick'],
         ALLOWED_TAGS: [
             'b', 'i', 'u', 'em', 'strong', 'a', 
             'ul', 'li', 'ol', 'p', 'br', 'img', 'font',
@@ -236,7 +235,7 @@ function sanitizeContent(html) {
         ], 
         ALLOWED_ATTR: [
             'src', 'style', 'class', 'href', 'target', 'rel', 'align', 'color', 'size', 'face', 'title',
-            'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
+            'onclick', 'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
         ] 
     }); 
 }
@@ -273,7 +272,7 @@ let currentEditorMode = 'html';
 let confirmCallback = null;
 let isAlertOpen = false; 
 let isSnowInitialized = false;
-let isBanned = false; 
+let isBanned = false;
 
 let clientIP = "1.2.3.4"; 
 async function fetchClientIP() {}
@@ -403,14 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
             closeConfirm();
         };
     }
-    
-    document.body.addEventListener('click', function(e) {
-        const link = e.target.closest('a.external-link');
-        if(link) {
-            e.preventDefault();
-            confirmExternalLink(link.getAttribute('href'));
-        }
-    });
 });
 
 async function fetchPosts(type) {
