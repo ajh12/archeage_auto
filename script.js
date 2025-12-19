@@ -913,8 +913,13 @@ function router(page, pushHistory = true) {
     }
 
     if (pushHistory) {
-        const obfuscatedHash = ROUTE_MAP[page] ? ROUTE_MAP[page] : page;
-        history.pushState({ page: page }, null, `#${obfuscatedHash}`);
+        if (page === 'home') {
+            // [수정] 홈으로 이동 시 해시를 완전히 제거하여 깔끔한 주소로 변경
+            history.pushState({ page: page }, null, ' '); 
+        } else {
+            const obfuscatedHash = ROUTE_MAP[page] ? ROUTE_MAP[page] : page;
+            history.pushState({ page: page }, null, `#${obfuscatedHash}`);
+        }
     }
 
     window.scrollTo(0, 0);
