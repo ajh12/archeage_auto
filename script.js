@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6'; 
+const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6';
 
 const ENABLE_SNOW = true; 
 const PAGE_SIZE = 10;
@@ -580,7 +580,7 @@ async function fetchDeletedPosts() {
     
     if (!data || data.length === 0) {
         noData.classList.remove('hidden');
-        document.getElementById('pagination-deleted-posts').innerHTML = ''; // 페이지네이션 삭제
+        document.getElementById('pagination-deleted-posts').innerHTML = ''; 
         return;
     }
     noData.classList.add('hidden');
@@ -592,7 +592,7 @@ async function fetchDeletedPosts() {
 
 function renderDeletedPosts() {
     const list = document.getElementById('deleted-posts-list');
-    list.innerHTML = ''; // 리스트 초기화
+    list.innerHTML = ''; 
 
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
@@ -677,7 +677,7 @@ async function fetchDeletedComments() {
 
 function renderDeletedComments() {
     const list = document.getElementById('deleted-comments-list');
-    list.innerHTML = '';
+    list.innerHTML = ''; 
 
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
@@ -1656,6 +1656,23 @@ function removeCommentImage(idx) {
     renderCommentImagePreview();
 }
 
+async function verifyCaptcha(token) {
+    if (!dbClient) return false;
+    try {
+        const { data, error } = await dbClient.functions.invoke('verify-captcha', {
+            body: { token }
+        });
+        if (error || !data || !data.success) {
+            console.error("Captcha verification failed:", error || data);
+            return false;
+        }
+        return true;
+    } catch (e) {
+        console.error("Captcha invoke error:", e);
+        return false;
+    }
+}
+
 async function submitComment() {
     let name = document.getElementById('cmtName').value.trim();
     let contentText = document.getElementById('cmtContent').value; 
@@ -1663,29 +1680,20 @@ async function submitComment() {
 
     if(!contentText.trim() && currentCommentImages.length === 0) return showAlert("내용을 입력하세요.");
 
-    // reCAPTCHA 검증 (토큰 발급 강제)
-    if (!isAdmin) {
-        if (typeof grecaptcha === 'undefined') {
-            return showAlert("캡차 로드 실패. 잠시 후 다시 시도해주세요.");
-        }
-        
+    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY) {
         try {
             const token = await new Promise((resolve) => {
                 grecaptcha.ready(() => {
                     grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_comment' })
                         .then(token => resolve(token))
-                        .catch(err => {
-                            console.error(err);
-                            resolve(null);
-                        });
+                        .catch(err => { console.error(err); resolve(null); });
                 });
             });
 
-            if (!token) {
-                return showAlert("스팸 방지를 위한 캡차 인증에 실패했습니다.");
-            }
+            if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
             
-
+            const isVerified = await verifyCaptcha(token);
+            if (!isVerified) return showAlert("캡차 검증에 실패했습니다. (봇 의심)");
             
         } catch (e) {
             console.error("Captcha error:", e);
@@ -2305,28 +2313,20 @@ async function submitPost() {
     const textCheck = finalContent.replace(/<[^>]*>/g, '').trim();
     if(!textCheck && !thumb) return showAlert('내용을 입력하세요.');
 
-    // reCAPTCHA 검증 (토큰 발급 강제)
-    if (!isAdmin) {
-        if (typeof grecaptcha === 'undefined') {
-            return showAlert("캡차 로드 실패. 잠시 후 다시 시도해주세요.");
-        }
-        
+    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY) {
         try {
             const token = await new Promise((resolve) => {
                 grecaptcha.ready(() => {
                     grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_post' })
                         .then(token => resolve(token))
-                        .catch(err => {
-                            console.error(err);
-                            resolve(null);
-                        });
+                        .catch(err => { console.error(err); resolve(null); });
                 });
             });
 
-            if (!token) {
-                return showAlert("스팸 방지를 위한 캡차 인증에 실패했습니다.");
-            }
-
+            if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
+            
+            const isVerified = await verifyCaptcha(token);
+            if (!isVerified) return showAlert("캡차 검증에 실패했습니다. (봇 의심)");
             
         } catch (e) {
             console.error("Captcha error:", e);
