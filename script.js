@@ -2175,6 +2175,19 @@ async function submitPost() {
     const textCheck = finalContent.replace(/<[^>]*>/g, '').trim();
     if(!textCheck && !thumb) return showAlert('내용을 입력하세요.');
 
+    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY') {
+        try {
+            const token = await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_post' }).then(resolve);
+                });
+            });
+            if (!token) return showAlert("캡차 인증에 실패했습니다.");
+        } catch (e) {
+            console.error("Captcha error:", e);
+        }
+    }
+
     if(isAdmin) {
         n = "하포카";
         pw = "";
