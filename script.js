@@ -1,6 +1,5 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-// reCAPTCHA v3 사이트 키 (공개키)
 const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6';
 
 const ENABLE_SNOW = true; 
@@ -1137,12 +1136,8 @@ async function readPost(id, directData = null) {
                     dbClient.from('posts').update({ views: targetPost.views }).eq('id', id).then(() => {});
                 }
                 sessionStorage.setItem(viewedKey, 'true');
-            } else {
-                console.warn("View increment failed (DB function missing?):", error.message);
             }
-        } catch (e) {
-            console.error("RPC Error:", e);
-        }
+        } catch (e) {}
     }
     
     let post = directData; 
@@ -1668,21 +1663,38 @@ function removeCommentImage(idx) {
 
 async function verifyCaptcha(token) {
     if (!dbClient) return false;
+    
     try {
-        const { data, error } = await dbClient.functions.invoke('verify-captcha', {
-            body: { token }
-        });
+        // dbClient.functions.invoke 대신 fetch를 직접 사용하여 호출 (CORS 및 에러 디버깅 용이)
+        const functionUrl = `${SUPABASE_URL}/functions/v1/verify-captcha`;
         
-        if (error) {
-            console.error("Edge Function Error:", error);
-            alert("서버 연결 오류: " + error.message);
+        const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ token })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Edge Function Error:", errorText);
+            
+            // 400, 500 에러 처리
+            try {
+                const errJson = JSON.parse(errorText);
+                alert("서버 오류: " + (errJson.error || "알 수 없는 오류"));
+            } catch (e) {
+                alert(`서버 연결 실패 (${response.status})`);
+            }
             return false;
         }
 
-        console.log("구글 응답 데이터:", data); // 개발자 도구 콘솔 확인용
+        const data = await response.json();
+        console.log("구글 응답 데이터:", data);
 
         if (!data || !data.success) {
-            // 에러 코드 확인
             const errorCodes = data['error-codes'] || [];
             let msg = "캡차 검증 실패 (봇 의심)";
             if (errorCodes.includes('invalid-input-secret')) msg += "\n원인: 비밀키(Secret Key)가 잘못되었습니다.";
@@ -1694,15 +1706,16 @@ async function verifyCaptcha(token) {
             return false;
         }
         
-        // v3의 경우 score 점수도 확인 가능 (보통 0.5 이상이면 통과)
         if (data.score !== undefined && data.score < 0.5) {
              alert(`캡차 점수가 너무 낮습니다. (${data.score})`);
              return false;
         }
 
         return true;
+
     } catch (e) {
-        console.error("Captcha invoke error:", e);
+        console.error("Network/Captcha error:", e);
+        alert("네트워크 오류로 캡차 검증에 실패했습니다.");
         return false;
     }
 }
