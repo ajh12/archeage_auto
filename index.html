@@ -208,6 +208,9 @@
                 <button onclick="switchAdminTab('deleted-comments')" id="tab-admin-deleted-comments" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
                     <i class="fa-solid fa-comment-slash mr-2"></i>삭제된 댓글
                 </button>
+                <button onclick="switchAdminTab('ip-search')" id="tab-admin-ip-search" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
+                    <i class="fa-solid fa-network-wired mr-2"></i>IP 검색
+                </button>
             </div>
 
             <div id="admin-view-dashboard" class="admin-tab-content">
@@ -281,6 +284,17 @@
 
                 <div id="deleted-comments-list" class="space-y-4"></div>
                 <div id="no-deleted-comments" class="hidden text-center py-20 text-slate-400">삭제된 댓글이 없습니다.</div>
+            </div>
+
+            <div id="admin-view-ip-search" class="admin-tab-content hidden">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
+                    <h3 class="font-bold text-lg text-slate-800 mb-4">IP로 작성글/댓글 검색</h3>
+                    <div class="flex gap-2">
+                        <input type="text" id="adminIpSearchInput" class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500" placeholder="IP 주소를 입력하세요 (예: 1.2.3.4)" onkeyup="if(event.key==='Enter') adminSearchByIp()">
+                        <button onclick="adminSearchByIp()" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-500 transition">검색</button>
+                    </div>
+                </div>
+                <div id="admin-ip-search-results" class="space-y-4"></div>
             </div>
         </div>
     </main>
