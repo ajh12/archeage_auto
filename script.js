@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
 
 const ENABLE_SNOW = true; 
 
@@ -17,6 +18,8 @@ const ROUTE_MAP = {
 function getPageFromCode(code) {
     return Object.keys(ROUTE_MAP).find(key => ROUTE_MAP[key] === code) || 'home';
 }
+
+let lastSelectionRange = null;
 
 const particlesConfig = {
   "particles": {
@@ -185,20 +188,26 @@ renderer.link = function(href, title, text) {
     const match = cleanHref.match(youtubeRegex);
 
     if (match && match[1]) {
-        return `<div class="video-container"><iframe src="https://www.youtube.com/embed/${match[1]}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`;
+        return `<div class="video-container"><iframe src="https://www.youtube.com/embed/${match[1]}?mute=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>`;
     }
 
-    const titleAttr = cleanTitle ? ` title="${cleanTitle}"` : '';
     try {
         const urlObj = new URL(cleanHref);
-        const h = urlObj.hostname;
-        if (!h.includes('youtube.com') && !h.includes('youtu.be') && !h.includes('github') && !h.endsWith('.com') && !h.endsWith('.net') && !h.endsWith('.co.kr')) {
-             const safeHref = cleanHref.replace(/'/g, "\\'");
-             return `<a href="#" onclick="confirmExternalLink('${safeHref}'); return false;"${titleAttr} class="external-link">${cleanText}</a>`;
-        }
-    } catch(e) {}
+        const h = urlObj.hostname.toLowerCase();
+        
+        const allowedDomains = ['.com', '.net', '.co.kr'];
+        const isAllowed = allowedDomains.some(domain => h.endsWith(domain));
 
-    return `<a href="${cleanHref}" target="_blank"${titleAttr} class="external-link">${cleanText}</a>`;
+        if (!isAllowed) {
+            return `<span class="text-slate-500 underline decoration-dotted cursor-help" title="연결되지 않는 링크입니다">${cleanText}</span>`;
+        }
+
+        const titleAttr = cleanTitle ? ` title="${cleanTitle}"` : '';
+        return `<a href="${cleanHref}" target="_blank"${titleAttr} class="external-link">${cleanText}</a>`;
+
+    } catch(e) {
+        return cleanText;
+    }
 };
 
 marked.setOptions({
@@ -214,6 +223,8 @@ function escapeHtml(text) {
 
 function sanitizeContent(html) { 
     return DOMPurify.sanitize(html, { 
+        ADD_TAGS: ['iframe', 'div'],
+        ADD_ATTR: ['target', 'allow', 'allowfullscreen', 'frameborder', 'scrolling', 'class', 'onclick'],
         ALLOWED_TAGS: [
             'b', 'i', 'u', 'em', 'strong', 'a', 
             'ul', 'li', 'ol', 'p', 'br', 'img', 'font',
@@ -225,7 +236,7 @@ function sanitizeContent(html) {
         ], 
         ALLOWED_ATTR: [
             'src', 'style', 'class', 'href', 'target', 'rel', 'align', 'color', 'size', 'face', 'title',
-            'onclick', 'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
+            'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
         ] 
     }); 
 }
@@ -262,6 +273,7 @@ let currentEditorMode = 'html';
 let confirmCallback = null;
 let isAlertOpen = false; 
 let isSnowInitialized = false;
+let isBanned = false; 
 
 let clientIP = "1.2.3.4"; 
 async function fetchClientIP() {}
@@ -391,6 +403,14 @@ document.addEventListener('DOMContentLoaded', () => {
             closeConfirm();
         };
     }
+    
+    document.body.addEventListener('click', function(e) {
+        const link = e.target.closest('a.external-link');
+        if(link) {
+            e.preventDefault();
+            confirmExternalLink(link.getAttribute('href'));
+        }
+    });
 });
 
 async function fetchPosts(type) {
@@ -790,39 +810,22 @@ async function sha256(message) {
 
 async function savePostToDB(postData) {
     const isPinned = document.getElementById('checkPinned').checked;
-    
     if(!isAdmin) saveNickname(postData.author);
 
-    if (editingPostId) {
-        if(!dbClient) return showAlert("오프라인 상태에서는 수정할 수 없습니다.");
-        
-        const { error } = await dbClient.rpc('update_post_secure', {
-            p_id: editingPostId,
-            p_title: postData.title,
-            p_content: postData.content,
-            p_image_url: postData.image,
-            p_is_pinned: isAdmin ? isPinned : false
-        });
-
-    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY') {
-        try {
-            const token = await new Promise((resolve) => {
-                grecaptcha.ready(() => {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_post' }).then(resolve);
-                });
+    try {
+        if (editingPostId) {
+            if(!dbClient) return showAlert("오프라인 상태에서는 수정할 수 없습니다.");
+            
+            const { error } = await dbClient.rpc('update_post_secure', {
+                p_id: editingPostId,
+                p_title: postData.title,
+                p_content: postData.content,
+                p_image_url: postData.image,
+                p_is_pinned: isAdmin ? isPinned : false
             });
-            
-            if (!token) return showAlert("캡차 인증에 실패했습니다.");
-            
-            
-        } catch (e) {
-            console.error("Captcha error:", e);
-        }
-    }
 
-        if (error) {
-            showAlert("수정 실패: " + error.message);
-        } else {
+            if (error) throw error;
+
             showAlert("수정되었습니다.");
             isWriting = false;
 
@@ -843,40 +846,39 @@ async function savePostToDB(postData) {
             } else {
                 posts.unshift(updatedPost);
             }
-            
             saveLocalPosts();
             
             const targetId = editingPostId;
             resetEditor();
-
             setTimeout(() => {
                 readPost(targetId, updatedPost); 
+                router('detail'); 
             }, 100);
+            return;
         }
-        return;
-    }
 
+        let finalPw = postData.password;
+        if(!isAdmin && finalPw) finalPw = await sha256(finalPw);
 
-    let finalPw = postData.password;
-    if(!isAdmin && finalPw) finalPw = await sha256(finalPw);
+        const { data, error } = await dbClient.rpc('create_post_secure', {
+            p_title: postData.title,
+            p_content: postData.content,
+            p_author: postData.author,
+            p_password: finalPw,
+            p_type: postData.type,
+            p_image_url: postData.image,
+            p_is_pinned: isAdmin ? isPinned : false
+        });
 
-    const { data, error } = await dbClient.rpc('create_post_secure', {
-        p_title: postData.title,
-        p_content: postData.content,
-        p_author: postData.author,
-        p_password: finalPw,
-        p_type: postData.type,
-        p_image_url: postData.image,
-        p_is_pinned: isAdmin ? isPinned : false
-    });
+        if (error) throw error;
 
-    if (error) {
-        showAlert("작성 실패: " + error.message);
-    } else {
         showAlert('등록되었습니다.');
         isWriting = false;
         resetEditor();
         router(currentBoardType);
+
+    } catch (e) {
+        showAlert("처리 중 오류가 발생했습니다: " + e.message);
     }
 }
 
@@ -914,7 +916,6 @@ function router(page, pushHistory = true) {
 
     if (pushHistory) {
         if (page === 'home') {
-            // [수정] 홈으로 이동 시 해시를 완전히 제거하여 깔끔한 주소로 변경
             history.pushState({ page: page }, null, ' '); 
         } else {
             const obfuscatedHash = ROUTE_MAP[page] ? ROUTE_MAP[page] : page;
@@ -1231,8 +1232,7 @@ async function readPost(id, directData = null) {
     
     const contentDiv = document.getElementById('detail-content');
     if(contentDiv) {
-        const safeContent = post.content || ''; 
-        
+        let safeContent = post.content || ''; 
         let parsed = marked.parse(safeContent);
         
         contentDiv.innerHTML = sanitizeContent(parsed);
@@ -1596,6 +1596,19 @@ function updateToolbar() {
     });
 }
 
+const editor = document.getElementById('editorContentHtml');
+if(editor) {
+    const saveSelection = () => {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+            lastSelectionRange = sel.getRangeAt(0);
+        }
+    };
+    editor.addEventListener('mouseup', saveSelection);
+    editor.addEventListener('keyup', saveSelection);
+    editor.addEventListener('input', saveSelection);
+}
+
 document.addEventListener('selectionchange', () => {
     if (document.activeElement === document.getElementById('editorContentHtml')) {
         updateToolbar();
@@ -1797,7 +1810,13 @@ function insertImage(inp) {
         
         const insertToEditor = (url) => {
              if (currentEditorMode === 'html') {
-                 document.getElementById('editorContentHtml').focus();
+                 const editor = document.getElementById('editorContentHtml');
+                 editor.focus();
+                 if (lastSelectionRange) {
+                     const sel = window.getSelection();
+                     sel.removeAllRanges();
+                     sel.addRange(lastSelectionRange);
+                 }
                  document.execCommand('insertHTML', false, `<img src="${url}"><p><br></p>`);
              } else {
                  const textarea = document.getElementById('editorContentMarkdown');
@@ -2142,7 +2161,7 @@ function resetEditor() {
     editingPostId = null;
 }
 
-function submitPost() {
+async function submitPost() {
     const t = document.getElementById('inputTitle').value.trim(); 
     let n = document.getElementById('inputName').value.trim(); 
     let pw = document.getElementById('inputPw').value.trim(); 
@@ -2155,10 +2174,10 @@ function submitPost() {
     }
     
     let thumb = null;
-    const htmlImgMatch = finalContent.match(/<img[^>]+src=["']([^"']+)["']/);
+    const imgMatch = finalContent.match(/<img[^>]+src=["']([^"']+)["']/);
     const mdImgMatch = finalContent.match(/!\[.*?\]\((.*?)\)/);
     
-    if (htmlImgMatch && htmlImgMatch[1]) thumb = htmlImgMatch[1];
+    if (imgMatch && imgMatch[1]) thumb = imgMatch[1];
     else if (mdImgMatch && mdImgMatch[1]) thumb = mdImgMatch[1];
 
     if(!t) return showAlert('제목을 입력하세요.'); 
@@ -2187,7 +2206,7 @@ function submitPost() {
         postData.type = currentBoardType;
     }
 
-    savePostToDB(postData);
+    await savePostToDB(postData);
 }
 
 function openAdminLogin() { if(!isAdmin) document.getElementById('adminModal').classList.remove('hidden'); }
