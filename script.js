@@ -1,6 +1,6 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
+const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6';
 
 const ENABLE_SNOW = true; 
 
