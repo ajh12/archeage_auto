@@ -3,6 +3,21 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const ENABLE_SNOW = true; 
 
+const ROUTE_MAP = {
+    'home': 'fme120e0f',        
+    'notice': '5a105e8b',  
+    'free': 'ad023482',    
+    'list': 'b3a8e0e1',    
+    'admin': '9f86d081',   
+    'write': '11e389c9',   
+    'search': '05972be4',  
+    'detail': 'e29a1c3f'  
+};
+
+function getPageFromCode(code) {
+    return Object.keys(ROUTE_MAP).find(key => ROUTE_MAP[key] === code) || 'home';
+}
+
 const particlesConfig = {
   "particles": {
     "number": {
@@ -897,7 +912,8 @@ function router(page, pushHistory = true) {
     }
 
     if (pushHistory) {
-        history.pushState({ page: page }, null, `#${page}`);
+        const obfuscatedHash = ROUTE_MAP[page] ? ROUTE_MAP[page] : page;
+        history.pushState({ page: page }, null, `#${obfuscatedHash}`);
     }
 
     window.scrollTo(0, 0);
@@ -1061,7 +1077,7 @@ async function searchGlobal(keyword) {
     document.getElementById('view-search').classList.remove('hidden');
     window.scrollTo(0,0);
     
-    if(lastPage !== 'search') history.pushState({ page: 'search' }, null, '#search');
+    if(lastPage !== 'search') history.pushState({ page: 'search' }, null, `#${ROUTE_MAP['search'] || 'search'}`);
     lastPage = 'search'; 
 
     document.querySelector('#search-keyword-display span').innerText = keyword;
@@ -2291,7 +2307,9 @@ window.onload = () => {
     loadLocalPosts(); 
     const initialHash = window.location.hash.replace('#', '');
     
-    if (initialHash === 'detail') {
+    const realPage = getPageFromCode(initialHash); 
+    
+    if (realPage === 'detail') { 
         const savedId = localStorage.getItem('aa_current_post_id');
         if (savedId) {
             readPost(savedId).then(() => {
@@ -2305,7 +2323,7 @@ window.onload = () => {
             if(loader) setTimeout(() => loader.classList.add('hidden'), 300);
         }
     } else {
-        router(initialHash || 'home', false);
+        router(realPage, false);
         if(loader) setTimeout(() => loader.classList.add('hidden'), 300);
     }
     
