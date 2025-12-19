@@ -1,8 +1,9 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6';
+const RECAPTCHA_SITE_KEY = '6Lc7gzAsAAAAANWHkt6INtrolkA-SV3QAEfqBaC6'; 
 
 const ENABLE_SNOW = true; 
+const PAGE_SIZE = 10;
 
 const ROUTE_MAP = {
     'home': 'fme120e0f',        
@@ -23,106 +24,18 @@ let lastSelectionRange = null;
 
 const particlesConfig = {
   "particles": {
-    "number": {
-      "value": 100,
-      "density": {
-        "enable": true,
-        "value_area": 800
-      }
-    },
-    "color": {
-      "value": "#ffffff"
-    },
-    "shape": {
-      "type": "circle",
-      "stroke": {
-        "width": 0,
-        "color": "#000000"
-      },
-      "polygon": {
-        "nb_sides": 5
-      }
-    },
-    "opacity": {
-      "value": 0.8,
-      "random": true,
-      "anim": {
-        "enable": false,
-        "speed": 1,
-        "opacity_min": 0.1,
-        "sync": false
-      }
-    },
-    "size": {
-      "value": 5,
-      "random": true,
-      "anim": {
-        "enable": false,
-        "speed": 40,
-        "size_min": 0.1,
-        "sync": false
-      }
-    },
-    "line_linked": {
-      "enable": false,
-      "distance": 500,
-      "color": "#ffffff",
-      "opacity": 0.4,
-      "width": 2
-    },
-    "move": {
-      "enable": true,
-      "speed": 3,
-      "direction": "bottom",
-      "random": false,
-      "straight": false,
-      "out_mode": "out",
-      "bounce": false,
-      "attract": {
-        "enable": false,
-        "rotateX": 600,
-        "rotateY": 1200
-      }
-    }
+    "number": { "value": 100, "density": { "enable": true, "value_area": 800 } },
+    "color": { "value": "#ffffff" },
+    "shape": { "type": "circle", "stroke": { "width": 0, "color": "#000000" }, "polygon": { "nb_sides": 5 } },
+    "opacity": { "value": 0.8, "random": true, "anim": { "enable": false, "speed": 1, "opacity_min": 0.1, "sync": false } },
+    "size": { "value": 5, "random": true, "anim": { "enable": false, "speed": 40, "size_min": 0.1, "sync": false } },
+    "line_linked": { "enable": false, "distance": 500, "color": "#ffffff", "opacity": 0.4, "width": 2 },
+    "move": { "enable": true, "speed": 3, "direction": "bottom", "random": false, "straight": false, "out_mode": "out", "bounce": false, "attract": { "enable": false, "rotateX": 600, "rotateY": 1200 } }
   },
   "interactivity": {
     "detect_on": "canvas",
-    "events": {
-      "onhover": {
-        "enable": false,
-        "mode": "bubble"
-      },
-      "onclick": {
-        "enable": false,
-        "mode": "repulse"
-      },
-      "resize": true
-    },
-    "modes": {
-      "grab": {
-        "distance": 400,
-        "line_linked": {
-          "opacity": 0.5
-        }
-      },
-      "bubble": {
-        "distance": 400,
-        "size": 4,
-        "duration": 0.3,
-        "opacity": 1,
-        "speed": 3
-      },
-      "repulse": {
-        "distance": 200,
-        "duration": 0.4
-      },
-      "push": {
-        "particles_nb": 4
-      },
-      "remove": {
-        "particles_nb": 2
-      }
-    }
+    "events": { "onhover": { "enable": false, "mode": "bubble" }, "onclick": { "enable": false, "mode": "repulse" }, "resize": true },
+    "modes": { "grab": { "distance": 400, "line_linked": { "opacity": 0.5 } }, "bubble": { "distance": 400, "size": 4, "duration": 0.3, "opacity": 1, "speed": 3 }, "repulse": { "distance": 200, "duration": 0.4 }, "push": { "particles_nb": 4 }, "remove": { "particles_nb": 2 } }
   },
   "retina_detect": true
 };
@@ -144,7 +57,9 @@ try {
             }
         });
     }
-} catch(e) {}
+} catch(e) {
+    console.error("Supabase init error:", e);
+}
 
 if (typeof DOMPurify !== 'undefined') {
     DOMPurify.addHook('beforeSanitizeElements', (currentNode) => {
@@ -257,7 +172,6 @@ let currentBoardType = 'error';
 let isAdmin = false;
 let lastPage = 'home';
 let errorViewMode = 'grid';
-let visibleCount = 9;
 let currentPostId = null;
 let isWriting = false;
 let editingPostId = null; 
@@ -274,8 +188,29 @@ let isAlertOpen = false;
 let isSnowInitialized = false;
 let isBanned = false;
 
+let currentPage = 1;
+let totalCount = 0;
+
+let currentAdminTab = 'dashboard';
+let ipSearchData = []; 
+let deletedPostsData = [];
+let deletedCommentsData = [];
+const ADMIN_PAGE_SIZE = 10;
+let ipSearchPage = 0;
+let deletedPostPage = 0;
+let deletedCommentPage = 0;
+
 let clientIP = "1.2.3.4"; 
-async function fetchClientIP() {}
+async function fetchClientIP() {
+    try {
+        const response = await fetch('https://api64.ipify.org?format=json');
+        const data = await response.json();
+        if(data && data.ip) clientIP = data.ip;
+    } catch (e) {
+        console.error("IP fetch failed", e);
+    }
+}
+fetchClientIP();
 
 fetch('https://raw.githubusercontent.com/Pretsg/Archeage_auto/main/version.txt')
     .then(r => r.text())
@@ -404,27 +339,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-async function fetchPosts(type) {
+async function fetchPosts(type, page = 1) {
     if (!dbClient) {
         loadLocalPosts();
-        renderBoard();
+        drawBoard();
         return;
     }
     
-    document.getElementById('loading-spinner').classList.remove('hidden');
+    currentBoardType = type;
+    currentPage = page;
+    
+    const spinner = document.getElementById('loading-spinner');
+    if(spinner) spinner.classList.remove('hidden');
+    
     document.getElementById('board-container').innerHTML = '';
     
-    const { data, error } = await dbClient
+    const keyword = document.getElementById('boardSearchInput').value.trim();
+    
+    let query = dbClient
         .from('posts')
-        .select('*, comments(*)')
+        .select('*, comments(*)', { count: 'exact' }) 
         .eq('type', type)
-        .is('deleted_at', null) 
+        .is('deleted_at', null)
+        .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });
 
+    if (keyword) {
+        query = query.or(`title.ilike.%${keyword}%,author.ilike.%${keyword}%`);
+    }
+
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    
+    const { data, count, error } = await query.range(from, to);
+
     if (error) { 
-        loadLocalPosts();
-        renderBoard();
+        console.error("Fetch posts error:", error);
+        if(posts.length === 0) loadLocalPosts();
+        drawBoard();
     } else {
+        totalCount = count || 0;
         posts = data.map(p => ({
             ...p,
             date: new Date(p.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -433,20 +387,91 @@ async function fetchPosts(type) {
             reported_by: Array.isArray(p.reported_by) ? p.reported_by : [] 
         }));
         
-        posts.sort((a, b) => {
-            const pinA = a.is_pinned ? 1 : 0;
-            const pinB = b.is_pinned ? 1 : 0;
-            return pinB - pinA;
-        });
-
         saveLocalPosts();
-        renderBoard();
+        drawBoard();
+        renderPagination(); 
     }
     
     if(isAdmin) {
         updateAdminStats();
     }
-    document.getElementById('loading-spinner').classList.add('hidden');
+    if(spinner) spinner.classList.add('hidden');
+}
+
+function changePage(page) {
+    if (page < 1) return;
+    fetchPosts(currentBoardType, page);
+}
+
+function renderPagination() {
+    const container = document.getElementById('pagination-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    
+    if (totalPages <= 1) return;
+
+    const maxButtons = 5;
+    const startPage = Math.floor((currentPage - 1) / maxButtons) * maxButtons + 1;
+    const endPage = Math.min(startPage + maxButtons - 1, totalPages);
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = "pagination-btn";
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    prevBtn.onclick = () => changePage(currentPage - 1);
+    container.appendChild(prevBtn);
+
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+        btn.innerText = i;
+        btn.onclick = () => changePage(i);
+        container.appendChild(btn);
+    }
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = "pagination-btn";
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    nextBtn.onclick = () => changePage(currentPage + 1);
+    container.appendChild(nextBtn);
+}
+
+function renderAdminPagination(containerId, totalItems, currentPage, pageSize, changePageCallback) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const totalPages = Math.ceil(totalItems / pageSize);
+    if (totalPages <= 1) return;
+
+    const maxButtons = 5;
+    const startPage = Math.floor((currentPage - 1) / maxButtons) * maxButtons + 1;
+    const endPage = Math.min(startPage + maxButtons - 1, totalPages);
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = "pagination-btn";
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    prevBtn.onclick = () => changePageCallback(currentPage - 1);
+    container.appendChild(prevBtn);
+
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+        btn.innerText = i;
+        btn.onclick = () => changePageCallback(i);
+        container.appendChild(btn);
+    }
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = "pagination-btn";
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    nextBtn.onclick = () => changePageCallback(currentPage + 1);
+    container.appendChild(nextBtn);
 }
 
 async function updateAdminStats() {
@@ -501,7 +526,8 @@ async function fetchRecentPostsAdmin() {
 }
 
 function switchAdminTab(tabName) {
-    ['dashboard', 'deleted-posts', 'deleted-comments', 'reported'].forEach(t => {
+    currentAdminTab = tabName;
+    ['dashboard', 'deleted-posts', 'deleted-comments', 'reported', 'ip-search'].forEach(t => {
         const btn = document.getElementById(`tab-admin-${t}`);
         const content = document.getElementById(`admin-view-${t}`);
         
@@ -518,6 +544,15 @@ function switchAdminTab(tabName) {
     if (tabName === 'deleted-posts') fetchDeletedPosts();
     if (tabName === 'deleted-comments') fetchDeletedComments();
     if (tabName === 'reported') fetchReportedItems();
+    if (tabName === 'ip-search') {
+        document.getElementById('adminIpSearchInput').focus();
+        if(ipSearchData.length > 0) {
+            const container = document.getElementById('admin-ip-search-results');
+            container.innerHTML = '';
+            ipSearchPage = 0;
+            renderIpSearchResults();
+        }
+    }
 }
 
 function toggleSelectAll(type, checked) {
@@ -545,20 +580,39 @@ async function fetchDeletedPosts() {
     
     if (!data || data.length === 0) {
         noData.classList.remove('hidden');
+        document.getElementById('pagination-deleted-posts').innerHTML = ''; // 페이지네이션 삭제
         return;
     }
     noData.classList.add('hidden');
 
+    deletedPostsData = data;
+    deletedPostPage = 0;
+    renderDeletedPosts();
+}
+
+function renderDeletedPosts() {
+    const list = document.getElementById('deleted-posts-list');
+    list.innerHTML = ''; // 리스트 초기화
+
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    
+    const start = deletedPostPage * ADMIN_PAGE_SIZE;
+    const end = start + ADMIN_PAGE_SIZE;
+    const pageData = deletedPostsData.slice(start, end);
 
-    for (const post of data) {
+    if(pageData.length === 0 && deletedPostPage === 0) {
+        document.getElementById('no-deleted-posts').classList.remove('hidden');
+        return;
+    }
+
+    pageData.forEach(async post => {
         const delDate = new Date(post.deleted_at);
         const elapsed = now - delDate;
         
         if (elapsed > thirtyDays) {
             await dbClient.from('posts').delete().eq('id', post.id);
-            continue;
+            return;
         }
 
         const remainDays = 30 - Math.floor(elapsed / (24 * 60 * 60 * 1000));
@@ -569,12 +623,14 @@ async function fetchDeletedPosts() {
             if(e.target.tagName !== 'BUTTON' && e.target.type !== 'checkbox') readPost(post.id);
         };
         
+        const ipDisplay = post.ip ? `<span class="text-xs text-red-300 font-bold ml-1">(${post.ip})</span>` : '';
+
         div.innerHTML = `
             <input type="checkbox" class="del-chk-post w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="${post.id}" onclick="event.stopPropagation()">
             <div class="flex-grow min-w-0">
                 <div class="font-bold text-slate-700 line-clamp-1">${escapeHtml(post.title)}</div>
                 <div class="text-xs text-red-400 mt-1">삭제일: ${delDate.toLocaleDateString()} (영구 삭제까지 ${remainDays}일)</div>
-                <div class="text-xs text-slate-400">작성자: ${escapeHtml(post.author)}</div>
+                <div class="text-xs text-slate-400">작성자: ${escapeHtml(post.author)}${ipDisplay}</div>
             </div>
             <div class="flex flex-col gap-2 shrink-0">
                 <button onclick="event.stopPropagation(); restorePost('${post.id}')" class="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100 transition whitespace-nowrap">복구</button>
@@ -582,132 +638,13 @@ async function fetchDeletedPosts() {
             </div>
         `;
         list.appendChild(div);
-    }
+    });
+
+    renderAdminPagination('pagination-deleted-posts', deletedPostsData.length, deletedPostPage + 1, ADMIN_PAGE_SIZE, (newPage) => {
+        deletedPostPage = newPage - 1;
+        renderDeletedPosts();
+    });
 }
-
-async function fetchReportedItems() {
-    if(!dbClient) return;
-    
-    const postList = document.getElementById('reported-posts-list');
-    const noPost = document.getElementById('no-reported-posts');
-    postList.innerHTML = '<div class="text-center"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
-    
-    const { data: rPosts } = await dbClient.from('posts').select('*').gte('reports', 5).is('deleted_at', null);
-    
-    postList.innerHTML = '';
-    if(rPosts && rPosts.length > 0) {
-        noPost.classList.add('hidden');
-        rPosts.forEach(p => {
-            const div = document.createElement('div');
-            div.className = "bg-red-50 p-4 rounded-xl border border-red-200 flex flex-col gap-2 cursor-pointer hover:bg-red-100 transition";
-            div.onclick = (e) => {
-                if(e.target.tagName !== 'BUTTON') readPost(p.id);
-            };
-            
-            div.innerHTML = `
-                <div class="font-bold text-red-700">${escapeHtml(p.title)}</div>
-                <div class="text-xs text-slate-500">작성자: ${escapeHtml(p.author)} | 신고: ${p.reports}회</div>
-                <div class="text-xs text-slate-400">신고자 IP 목록: ${p.reported_by ? JSON.stringify(p.reported_by) : '없음'}</div>
-                <div class="flex gap-2 mt-1">
-                    <button onclick="event.stopPropagation(); clearReports('post', '${p.id}')" class="px-3 py-1 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-slate-100">신고 초기화 (복구)</button>
-                    <button onclick="event.stopPropagation(); deletePost('${p.id}')" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700">삭제</button>
-                </div>
-            `;
-            postList.appendChild(div);
-        });
-    } else {
-        noPost.classList.remove('hidden');
-    }
-
-    const cmtList = document.getElementById('reported-comments-list');
-    const noCmt = document.getElementById('no-reported-comments');
-    cmtList.innerHTML = '<div class="text-center"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i></div>';
-    
-    const { data: rCmts } = await dbClient.from('comments').select('*').gte('reports', 5).is('deleted_at', null);
-    
-    cmtList.innerHTML = '';
-    if(rCmts && rCmts.length > 0) {
-        noCmt.classList.add('hidden');
-        rCmts.forEach(c => {
-            const cleanContent = c.content.replace(/<[^>]*>/g, ' ').substring(0, 30);
-            const div = document.createElement('div');
-            div.className = "bg-red-50 p-4 rounded-xl border border-red-200 flex flex-col gap-2 cursor-pointer hover:bg-red-100 transition";
-            div.onclick = (e) => {
-                if(e.target.tagName !== 'BUTTON') showContentModal(c.content, "신고된 댓글 전문");
-            };
-
-            div.innerHTML = `
-                <div class="font-bold text-red-700 text-sm">${escapeHtml(cleanContent)}...</div>
-                <div class="text-xs text-slate-500">작성자: ${escapeHtml(c.author)} | 신고: ${c.reports}회</div>
-                <div class="text-xs text-slate-400">신고자 IP 목록: ${c.reported_by ? JSON.stringify(c.reported_by) : '없음'}</div>
-                <div class="flex gap-2 mt-1">
-                    <button onclick="event.stopPropagation(); clearReports('comment', '${c.id}')" class="px-3 py-1 bg-white border border-slate-200 rounded text-xs font-bold hover:bg-slate-100">신고 초기화 (복구)</button>
-                    <button onclick="event.stopPropagation(); deleteComment('${c.id}')" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700">삭제</button>
-                </div>
-            `;
-            cmtList.appendChild(div);
-        });
-    } else {
-        noCmt.classList.remove('hidden');
-    }
-}
-
-async function clearReports(type, id) {
-    if(!confirm("신고 횟수를 초기화하시겠습니까?")) return;
-    const table = type === 'post' ? 'posts' : 'comments';
-    const { error } = await dbClient.from(table).update({ reports: 0, reported_by: [] }).eq('id', id);
-    
-    if(error) showAlert("초기화 실패");
-    else {
-        showAlert("신고가 초기화되었습니다.");
-        fetchReportedItems();
-    }
-}
-
-async function restorePost(id) {
-    if(!confirm("이 게시글을 복구하시겠습니까?")) return;
-    const { error } = await dbClient.from('posts').update({ deleted_at: null, status: 'restored' }).eq('id', id);
-    if(error) showAlert("복구 실패: " + error.message);
-    else {
-        showAlert("게시글이 복구되었습니다.");
-        fetchDeletedPosts();
-    }
-}
-
-async function permanentlyDeletePost(id) {
-    showConfirm("이 게시글을 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", async () => {
-        const { error } = await dbClient.from('posts').delete().eq('id', id);
-        if(error) showAlert("삭제 실패: " + error.message);
-        else {
-            showAlert("영구 삭제되었습니다.");
-            fetchDeletedPosts();
-        }
-    }, "영구 삭제 확인", "영구 삭제");
-}
-
-async function deleteSelected(type) {
-    const className = type === 'post' ? 'del-chk-post' : 'del-chk-comment';
-    const checkedBoxes = document.querySelectorAll(`.${className}:checked`);
-    
-    if(checkedBoxes.length === 0) return showAlert("선택된 항목이 없습니다.");
-    
-    const ids = Array.from(checkedBoxes).map(cb => cb.value);
-    const count = ids.length;
-    const targetName = type === 'post' ? '게시글' : '댓글';
-
-    showConfirm(`선택한 ${count}개의 ${targetName}을(를) 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`, async () => {
-        const tableName = type === 'post' ? 'posts' : 'comments';
-        const { error } = await dbClient.from(tableName).delete().in('id', ids);
-        
-        if(error) showAlert("삭제 실패: " + error.message);
-        else {
-            showAlert(`${count}개의 항목이 영구 삭제되었습니다.`);
-            if(type === 'post') fetchDeletedPosts();
-            else fetchDeletedComments();
-        }
-    }, "일괄 영구 삭제", "일괄 삭제");
-}
-
 
 async function fetchDeletedComments() {
     if(!dbClient) return;
@@ -728,24 +665,44 @@ async function fetchDeletedComments() {
     
     if (!data || data.length === 0) {
         noData.classList.remove('hidden');
+        document.getElementById('pagination-deleted-comments').innerHTML = ''; 
         return;
     }
     noData.classList.add('hidden');
 
+    deletedCommentsData = data;
+    deletedCommentPage = 0;
+    renderDeletedComments();
+}
+
+function renderDeletedComments() {
+    const list = document.getElementById('deleted-comments-list');
+    list.innerHTML = '';
+
     const now = new Date();
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
 
-    for (const cmt of data) {
+    const start = deletedCommentPage * ADMIN_PAGE_SIZE;
+    const end = start + ADMIN_PAGE_SIZE;
+    const pageData = deletedCommentsData.slice(start, end);
+    
+    if(pageData.length === 0 && deletedCommentPage === 0) {
+        document.getElementById('no-deleted-comments').classList.remove('hidden');
+        return;
+    }
+
+    pageData.forEach(async cmt => {
         const delDate = new Date(cmt.deleted_at);
         const elapsed = now - delDate;
         
         if (elapsed > thirtyDays) {
             await dbClient.from('comments').delete().eq('id', cmt.id);
-            continue;
+            return;
         }
 
         const remainDays = 30 - Math.floor(elapsed / (24 * 60 * 60 * 1000));
         const cleanContent = cmt.content.replace(/<[^>]*>/g, ' ').substring(0, 50);
+        const ipDisplay = cmt.ip ? `<span class="text-xs text-red-300 font-bold ml-1">(${cmt.ip})</span>` : '';
 
         const div = document.createElement('div');
         div.className = "bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition";
@@ -760,7 +717,7 @@ async function fetchDeletedComments() {
             <div class="flex-grow min-w-0">
                 <div class="font-bold text-slate-700 line-clamp-1">${escapeHtml(cleanContent)}...</div>
                 <div class="text-xs text-red-400 mt-1">삭제일: ${delDate.toLocaleDateString()} (영구 삭제까지 ${remainDays}일)</div>
-                <div class="text-xs text-slate-400">작성자: ${escapeHtml(cmt.author)}</div>
+                <div class="text-xs text-slate-400">작성자: ${escapeHtml(cmt.author)}${ipDisplay}</div>
             </div>
             <div class="flex flex-col gap-2 shrink-0">
                 <button onclick="event.stopPropagation(); restoreComment('${cmt.id}')" class="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100 transition whitespace-nowrap">복구</button>
@@ -768,7 +725,12 @@ async function fetchDeletedComments() {
             </div>
         `;
         list.appendChild(div);
-    }
+    });
+
+    renderAdminPagination('pagination-deleted-comments', deletedCommentsData.length, deletedCommentPage + 1, ADMIN_PAGE_SIZE, (newPage) => {
+        deletedCommentPage = newPage - 1;
+        renderDeletedComments();
+    });
 }
 
 async function restoreComment(id) {
@@ -896,13 +858,16 @@ function router(page, pushHistory = true) {
     if(['notice','free','list'].includes(page)) {
         document.getElementById('view-board').classList.remove('hidden');
         currentBoardType = (page==='list'?'error':page);
-        visibleCount = (currentBoardType==='error'?9:10);
+        
         document.getElementById('boardSearchInput').value = '';
-        fetchPosts(currentBoardType);
+        fetchPosts(currentBoardType, 1);
     } else {
         const target = document.getElementById(`view-${page}`);
         if(target) target.classList.remove('hidden');
-        if(page === 'admin') switchAdminTab('dashboard');
+        
+        if(page === 'admin') {
+            switchAdminTab(currentAdminTab);
+        }
     }
 
     if (pushHistory) {
@@ -940,6 +905,10 @@ function router(page, pushHistory = true) {
 }
 
 function renderBoard() {
+    fetchPosts(currentBoardType, 1);
+}
+
+function drawBoard() {
     const container = document.getElementById('board-container');
     const titles = { notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'} };
     document.getElementById('board-title').innerText = titles[currentBoardType].t;
@@ -953,13 +922,8 @@ function renderBoard() {
     }
 
     container.innerHTML = '';
-    const keyword = document.getElementById('boardSearchInput').value.toLowerCase();
     
-    const filtered = posts.filter(p => p.type === currentBoardType && (p.title.toLowerCase().includes(keyword) || p.author.toLowerCase().includes(keyword)));
-    const showList = filtered.slice(0, visibleCount);
-    
-    document.getElementById('btn-more').classList.toggle('hidden', filtered.length <= visibleCount);
-    if(showList.length === 0) { container.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400">게시글이 없습니다.</div>`; return; }
+    if(posts.length === 0) { container.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400">게시글이 없습니다.</div>`; return; }
 
     const btnGrid = document.getElementById('btn-grid');
     
@@ -972,18 +936,15 @@ function renderBoard() {
         container.className = "flex flex-col gap-3";
     }
 
-    showList.forEach(post => {
+    posts.forEach(post => {
         const safeTitle = escapeHtml(post.title);
         let authorBadge = '';
         if(post.author === '하포카' || post.author === 'Admin') authorBadge = `<span class="admin-badge-icon"><i class="fa-solid fa-circle-check"></i></span>`;
 
         let ipTag = '';
-        if(post.author !== '하포카' && post.author !== 'Admin' && !isAdmin) {
+        if(isAdmin) {
             let rawIp = post.ip || 'Unknown';
-            if(rawIp.includes('.')) {
-                let parts = rawIp.split('.');
-                if(parts.length === 4) ipTag = `<span class="ml-2 text-[10px] text-slate-400 font-mono">${parts[0]}.${parts[1]}.***.***</span>`;
-            }
+            ipTag = `<span class="ml-2 text-[10px] text-red-400 font-bold font-mono" title="${rawIp}">(${rawIp})</span>`;
         }
 
         const cmtCount = post.comments ? post.comments.length : 0;
@@ -1161,11 +1122,17 @@ async function readPost(id, directData = null) {
                 const targetPost = posts.find(p => p.id == id);
                 if (targetPost) {
                     targetPost.views = (targetPost.views || 0) + 1; 
-                    dbClient.from('posts').update({ views: targetPost.views }).eq('id', id).then(() => {});
                 }
+                const viewsEl = document.getElementById('detail-views');
+                if(viewsEl && targetPost) viewsEl.innerText = targetPost.views;
+                
                 sessionStorage.setItem(viewedKey, 'true');
+            } else {
+                console.warn("View increment failed (DB function missing?):", error.message);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("RPC Error:", e);
+        }
     }
     
     let post = directData; 
@@ -1449,15 +1416,9 @@ function renderCommentNode(node, depth, listElement) {
     }
 
     let ipTag = '';
-    if(node.author !== '하포카' && node.author !== 'Admin') {
-        let rawIp = node.ip || '1.2.3.4';
-        if(rawIp.includes('.')) {
-            let parts = rawIp.split('.');
-            if(parts.length === 4) {
-                if(isAdmin) ipTag = `<span class="text-red-300 text-[10px] ml-1">(${rawIp})</span>`;
-                else ipTag = `<span class="text-slate-300 text-[10px] ml-1">(${parts[0]}.${parts[1]}.***.***)</span>`;
-            }
-        }
+    if(isAdmin) {
+        let rawIp = node.ip || 'Unknown';
+        ipTag = `<span class="text-red-300 text-[10px] ml-1">(${rawIp})</span>`;
     }
 
     const html = `
@@ -1702,16 +1663,33 @@ async function submitComment() {
 
     if(!contentText.trim() && currentCommentImages.length === 0) return showAlert("내용을 입력하세요.");
 
-    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY') {
+    // reCAPTCHA 검증 (토큰 발급 강제)
+    if (!isAdmin) {
+        if (typeof grecaptcha === 'undefined') {
+            return showAlert("캡차 로드 실패. 잠시 후 다시 시도해주세요.");
+        }
+        
         try {
             const token = await new Promise((resolve) => {
                 grecaptcha.ready(() => {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_comment' }).then(resolve);
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_comment' })
+                        .then(token => resolve(token))
+                        .catch(err => {
+                            console.error(err);
+                            resolve(null);
+                        });
                 });
             });
-            if (!token) return showAlert("캡차 인증에 실패했습니다.");
+
+            if (!token) {
+                return showAlert("스팸 방지를 위한 캡차 인증에 실패했습니다.");
+            }
+            
+
+            
         } catch (e) {
             console.error("Captcha error:", e);
+            return showAlert("캡차 오류가 발생했습니다.");
         }
     }
 
@@ -2053,9 +2031,163 @@ async function deleteComment(id) {
     }
 }
 
+async function adminSearchByIp() {
+    if(!dbClient) return;
+
+    const input = document.getElementById('adminIpSearchInput');
+    const ip = input.value.trim();
+    if(!ip) return showAlert("검색할 IP 주소를 입력하세요.");
+
+    const resultContainer = document.getElementById('admin-ip-search-results');
+    resultContainer.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-blue-500"></i> 검색 중...</div>';
+
+    try {
+        const { data: posts, error: postError } = await dbClient
+            .from('posts')
+            .select('*')
+            .eq('ip', ip)
+            .order('created_at', { ascending: false });
+
+        const { data: comments, error: commentError } = await dbClient
+            .from('comments')
+            .select('*')
+            .eq('ip', ip)
+            .order('created_at', { ascending: false });
+
+        ipSearchData = { 
+            posts: posts || [], 
+            comments: comments || [] 
+        };
+        ipSearchPage = 0;
+        
+        renderIpSearchResults();
+
+    } catch(e) {
+        resultContainer.innerHTML = `<div class="text-center py-4 text-red-500">검색 중 오류 발생: ${e.message}</div>`;
+    }
+}
+
+function renderIpSearchResults() {
+    const container = document.getElementById('admin-ip-search-results');
+    const combinedData = [];
+
+    ipSearchData.posts.forEach(p => combinedData.push({ type: 'post', data: p, date: new Date(p.created_at) }));
+    ipSearchData.comments.forEach(c => combinedData.push({ type: 'comment', data: c, date: new Date(c.created_at) }));
+    
+    combinedData.sort((a, b) => b.date - a.date);
+
+    const start = ipSearchPage * ADMIN_PAGE_SIZE;
+    const end = start + ADMIN_PAGE_SIZE;
+    const pageData = combinedData.slice(start, end);
+
+    if (ipSearchPage === 0) container.innerHTML = '';
+    const moreBtnId = 'ip-search-more-btn';
+    const existingBtn = document.getElementById(moreBtnId);
+    if(existingBtn) existingBtn.remove();
+
+    if (combinedData.length === 0) {
+        container.innerHTML = '<div class="text-center py-10 text-slate-400">해당 IP로 작성된 글이나 댓글이 없습니다.</div>';
+        return;
+    }
+
+    if (ipSearchPage === 0) {
+        const header = document.createElement('div');
+        header.className = "mb-4 text-sm text-slate-500 font-bold";
+        header.innerText = `총 ${combinedData.length}건 검색됨`;
+        container.appendChild(header);
+    }
+
+    pageData.forEach(item => {
+        const isPost = item.type === 'post';
+        const obj = item.data;
+        const isDeleted = !!obj.deleted_at;
+        
+        const div = document.createElement('div');
+        div.className = `bg-white p-3 rounded-lg border ${isDeleted ? 'border-red-200 bg-red-50' : 'border-slate-200'} shadow-sm hover:bg-slate-50 cursor-pointer mb-2`;
+        
+        if (isPost) {
+            div.onclick = () => readPost(obj.id);
+            div.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="truncate mr-2">
+                        <span class="text-xs font-bold text-blue-600 mr-1">[${obj.type}]</span>
+                        ${isDeleted ? '<span class="text-xs font-bold text-red-600 mr-1">[삭제됨]</span>' : ''}
+                        <span class="text-sm font-medium text-slate-800">${escapeHtml(obj.title)}</span>
+                    </div>
+                    <div class="text-xs text-slate-400 whitespace-nowrap">${item.date.toLocaleDateString()}</div>
+                </div>
+            `;
+        } else {
+            div.onclick = () => showContentModal(obj.content, "댓글 내용");
+            const cleanContent = obj.content.replace(/<[^>]*>/g, ' ').substring(0, 40);
+            div.innerHTML = `
+                <div class="text-sm text-slate-700 mb-1 line-clamp-1">
+                    ${isDeleted ? '<span class="text-xs font-bold text-red-600 mr-1">[삭제됨]</span>' : ''}
+                    <i class="fa-regular fa-comment-dots mr-1 text-slate-400"></i>${escapeHtml(cleanContent)}...
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-400">
+                    <span>작성자: ${escapeHtml(obj.author)}</span>
+                    <span>${item.date.toLocaleDateString()}</span>
+                </div>
+            `;
+        }
+        container.appendChild(div);
+    });
+
+    if (combinedData.length > end) {
+        const btn = document.createElement('button');
+        btn.id = moreBtnId;
+        btn.className = "w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition mt-2";
+        btn.innerHTML = `더 보기 (${combinedData.length - end}개 남음)`;
+        btn.onclick = () => {
+            ipSearchPage++;
+            renderIpSearchResults();
+        };
+        container.appendChild(btn);
+    }
+}
+
+async function clearReports(type, id) {
+    if(!confirm("신고 횟수를 초기화하시겠습니까?")) return;
+    const table = type === 'post' ? 'posts' : 'comments';
+    const { error } = await dbClient.from(table).update({ reports: 0, reported_by: [] }).eq('id', id);
+    
+    if(error) showAlert("초기화 실패");
+    else {
+        showAlert("신고가 초기화되었습니다.");
+        fetchReportedItems();
+    }
+}
+
+async function restorePost(id) {
+    if(!confirm("이 게시글을 복구하시겠습니까?")) return;
+    const { error } = await dbClient.from('posts').update({ deleted_at: null, status: 'restored' }).eq('id', id);
+    if(error) showAlert("복구 실패: " + error.message);
+    else {
+        showAlert("게시글이 복구되었습니다.");
+        fetchDeletedPosts();
+    }
+}
+
+async function permanentlyDeletePost(id) {
+    showConfirm("이 게시글을 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", async () => {
+        const { error } = await dbClient.from('posts').delete().eq('id', id);
+        if(error) showAlert("삭제 실패: " + error.message);
+        else {
+            showAlert("영구 삭제되었습니다.");
+            fetchDeletedPosts();
+        }
+    }, "영구 삭제 확인", "영구 삭제");
+}
+
+
 function confirmNavigation(targetPage) {
     if (targetPage === 'back') {
         targetPage = lastPage;
+        if(targetPage === 'admin') {
+            router('admin');
+            return;
+        }
     }
 
     if (isWriting) {
@@ -2133,8 +2265,6 @@ function writePost(type) {
     confirmNavigation('write'); 
 }
 
-function loadMore() { visibleCount += 9; renderBoard(); }
-
 function toggleViewMode(mode) { 
     errorViewMode = mode; 
     document.getElementById('btn-grid').classList.toggle('view-btn-active', mode === 'grid');
@@ -2175,16 +2305,32 @@ async function submitPost() {
     const textCheck = finalContent.replace(/<[^>]*>/g, '').trim();
     if(!textCheck && !thumb) return showAlert('내용을 입력하세요.');
 
-    if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY !== 'YOUR_RECAPTCHA_SITE_KEY') {
+    // reCAPTCHA 검증 (토큰 발급 강제)
+    if (!isAdmin) {
+        if (typeof grecaptcha === 'undefined') {
+            return showAlert("캡차 로드 실패. 잠시 후 다시 시도해주세요.");
+        }
+        
         try {
             const token = await new Promise((resolve) => {
                 grecaptcha.ready(() => {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_post' }).then(resolve);
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'submit_post' })
+                        .then(token => resolve(token))
+                        .catch(err => {
+                            console.error(err);
+                            resolve(null);
+                        });
                 });
             });
-            if (!token) return showAlert("캡차 인증에 실패했습니다.");
+
+            if (!token) {
+                return showAlert("스팸 방지를 위한 캡차 인증에 실패했습니다.");
+            }
+
+            
         } catch (e) {
             console.error("Captcha error:", e);
+            return showAlert("캡차 오류가 발생했습니다.");
         }
     }
 
@@ -2284,7 +2430,7 @@ async function deletePost(id) {
     } else { 
         posts = posts.filter(p => p.id != id); 
         saveLocalPosts(); 
-        renderBoard(); 
+        drawBoard(); 
     }
     
     showAlert("삭제되었습니다.");
