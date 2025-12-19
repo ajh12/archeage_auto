@@ -11,7 +11,7 @@ const ROUTE_MAP = {
     'admin': '9f86d081',   
     'write': '11e389c9',   
     'search': '05972be4',  
-    'detail': 'e29a1c3f'  
+    'detail': 'e29a1c3f'   
 };
 
 function getPageFromCode(code) {
@@ -876,7 +876,6 @@ async function savePostToDB(postData) {
         showAlert('등록되었습니다.');
         isWriting = false;
         resetEditor();
-        await fetchPosts(currentBoardType);
         router(currentBoardType);
     }
 }
@@ -890,6 +889,8 @@ window.addEventListener('popstate', (event) => {
 });
 
 function router(page, pushHistory = true) {
+    if (page === 'error') page = 'list';
+
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     
     const footer = document.getElementById('main-footer');
@@ -2149,7 +2150,7 @@ function submitPost() {
     }
     
     let thumb = null;
-    const htmlImgMatch = finalContent.match(/<img[^>]+src="([^">]+)"/);
+    const htmlImgMatch = finalContent.match(/<img[^>]+src=["']([^"']+)["']/);
     const mdImgMatch = finalContent.match(/!\[.*?\]\((.*?)\)/);
     
     if (htmlImgMatch && htmlImgMatch[1]) thumb = htmlImgMatch[1];
@@ -2248,8 +2249,10 @@ async function deletePost(id) {
             deleted_at: new Date().toISOString(),
             status: 'deleted'
         }).eq('id', id);
-
-        if(!error) fetchPosts(currentBoardType); 
+        
+        if(!error && document.getElementById('view-detail').classList.contains('hidden')) {
+             fetchPosts(currentBoardType); 
+        }
     } else { 
         posts = posts.filter(p => p.id != id); 
         saveLocalPosts(); 
@@ -2257,7 +2260,9 @@ async function deletePost(id) {
     }
     
     showAlert("삭제되었습니다.");
-    if(!document.getElementById('view-detail').classList.contains('hidden')) router(currentBoardType); 
+    if(!document.getElementById('view-detail').classList.contains('hidden')) {
+        router(currentBoardType); 
+    }
 }
 
 document.addEventListener('keydown', (e) => {
