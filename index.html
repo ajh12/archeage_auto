@@ -262,6 +262,7 @@
 
                 <div id="deleted-posts-list" class="space-y-4"></div>
                 <div id="no-deleted-posts" class="hidden text-center py-20 text-slate-400">삭제된 게시물이 없습니다.</div>
+                <div id="pagination-deleted-posts" class="flex justify-center items-center gap-2 mt-6"></div>
             </div>
 
             <div id="admin-view-deleted-comments" class="admin-tab-content hidden">
@@ -284,6 +285,7 @@
 
                 <div id="deleted-comments-list" class="space-y-4"></div>
                 <div id="no-deleted-comments" class="hidden text-center py-20 text-slate-400">삭제된 댓글이 없습니다.</div>
+                <div id="pagination-deleted-comments" class="flex justify-center items-center gap-2 mt-6"></div>
             </div>
 
             <div id="admin-view-ip-search" class="admin-tab-content hidden">
@@ -295,6 +297,7 @@
                     </div>
                 </div>
                 <div id="admin-ip-search-results" class="space-y-4"></div>
+                <div id="pagination-ip-search" class="flex justify-center items-center gap-2 mt-6"></div>
             </div>
         </div>
     </main>
@@ -317,7 +320,9 @@
             </div>
             <div id="loading-spinner" class="text-center py-20 hidden"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500"></i></div>
             <div id="board-container" class="grid gap-6"></div>
-            <div class="text-center mt-10"><button id="btn-more" onclick="loadMore()" class="px-8 py-3 rounded-full bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 shadow-sm transition hidden">더 보기</button></div>
+            <div class="text-center mt-10">
+                <div id="pagination-container" class="flex justify-center items-center gap-2"></div>
+            </div>
         </div>
     </main>
 
