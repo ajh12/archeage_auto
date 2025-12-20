@@ -4,6 +4,10 @@ body {
     user-select: none; 
 }
 
+.grecaptcha-badge { 
+    visibility: hidden !important; 
+}
+
 .glass-nav { 
     background: rgba(255, 255, 255, 0.9); 
     backdrop-filter: blur(12px); 
@@ -44,6 +48,7 @@ body {
     height: 100%;
     z-index: 0; 
     pointer-events: none; 
+    background-color: rgba(0, 0, 0, 0.15);
 }
 
 .program-window { 
