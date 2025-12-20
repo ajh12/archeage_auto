@@ -1,7 +1,6 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-const RECAPTCHA_SITE_KEY = '6LeCozEsAAAAAIcJ8W96QeQpaadZxd_YA7p3Ao4U'
-;
+const RECAPTCHA_SITE_KEY = '6LeCozEsAAAAAIcJ8W96QeQpaadZxd_YA7p3Ao4U';
 
 const ENABLE_SNOW = true; 
 const PAGE_SIZE = 10;
@@ -15,6 +14,17 @@ const ROUTE_MAP = {
     'write': '11e389c9',   
     'search': '05972be4',  
     'detail': 'e29a1c3f'   
+};
+
+const PAGE_TITLES = {
+    'home': '하포카 해결소',
+    'notice': '하포카 해결소 | 공지사항',
+    'free': '하포카 해결소 | 자유대화방',
+    'list': '하포카 해결소 | 오류해결소',
+    'admin': '하포카 해결소 | 관리자',
+    'write': '하포카 해결소 | 글쓰기',
+    'search': '하포카 해결소 | 검색결과',
+    'detail': '하포카 해결소' 
 };
 
 function getPageFromCode(code) {
@@ -188,6 +198,7 @@ let confirmCallback = null;
 let isAlertOpen = false; 
 let isSnowInitialized = false;
 let isBanned = false;
+let visitorChartInstance = null;
 
 let currentPage = 1;
 let totalCount = 0;
@@ -272,19 +283,24 @@ async function removeBan(ip) {
 
 async function recordVisit() {
     if(!dbClient) return;
+    
     const today = new Date().toISOString().split('T')[0];
-    const lastVisit = localStorage.getItem('last_visit_date');
+    const lastVisitKey = 'aa_last_visit_date';
+    const lastVisit = localStorage.getItem(lastVisitKey);
     
     if(lastVisit !== today) {
-        localStorage.setItem('last_visit_date', today);
+        localStorage.setItem(lastVisitKey, today);
         try {
             const { data, error } = await dbClient.from('daily_stats').select('*').eq('date', today).single();
+            
             if(error && error.code === 'PGRST116') {
                 await dbClient.from('daily_stats').insert([{ date: today, visitors: 1 }]);
             } else if(data) {
                 await dbClient.from('daily_stats').update({ visitors: data.visitors + 1 }).eq('date', today);
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error("Visit record error", e);
+        }
     }
 }
 
@@ -484,8 +500,72 @@ async function updateAdminStats() {
     const { count: banCount } = await dbClient.from('banned_ips').select('*', { count: 'exact', head: true });
     document.getElementById('stat-banned-count').innerText = banCount || 0;
 
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    const { data: todayData } = await dbClient.from('daily_stats').select('visitors').eq('date', today).single();
+    const { data: yesterdayData } = await dbClient.from('daily_stats').select('visitors').eq('date', yesterday).single();
+    
+    document.getElementById('stat-today-visits').innerText = todayData ? todayData.visitors : 0;
+    document.getElementById('stat-yesterday-visits').innerText = yesterdayData ? yesterdayData.visitors : 0;
+
     fetchRecentPostsAdmin();
     fetchBanList();
+    loadVisitorChart(); 
+}
+
+async function loadVisitorChart() {
+    if(!dbClient) return;
+    const ctx = document.getElementById('visitorChart');
+    if(!ctx) return;
+
+    const { data: stats } = await dbClient.from('daily_stats').select('*').order('date', { ascending: true }).limit(7);
+    
+    if(!stats) return;
+
+    if(visitorChartInstance) {
+        visitorChartInstance.destroy();
+    }
+
+    const labels = stats.map(s => s.date.substring(5)); 
+    const values = stats.map(s => s.visitors);
+
+    visitorChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '방문자 수',
+                data: values,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#2563eb',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { stepSize: 1, font: { family: 'Pretendard' } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Pretendard' } }
+                }
+            }
+        }
+    });
 }
 
 async function fetchRecentPostsAdmin() {
@@ -807,6 +887,7 @@ async function savePostToDB(postData) {
             setTimeout(() => {
                 readPost(targetId, updatedPost); 
                 router('detail'); 
+                document.getElementById('global-loader').classList.add('hidden'); 
             }, 100);
             return;
         }
@@ -830,8 +911,11 @@ async function savePostToDB(postData) {
         isWriting = false;
         resetEditor();
         router(currentBoardType);
+        
+        document.getElementById('global-loader').classList.add('hidden'); 
 
     } catch (e) {
+        document.getElementById('global-loader').classList.add('hidden'); 
         showAlert("처리 중 오류가 발생했습니다: " + e.message);
     }
 }
@@ -846,6 +930,8 @@ window.addEventListener('popstate', (event) => {
 
 function router(page, pushHistory = true) {
     if (page === 'error') page = 'list';
+
+    document.title = PAGE_TITLES[page] || '하포카 해결소';
 
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     
@@ -1114,8 +1200,9 @@ function renderSearchResults(results, keyword) {
 async function readPost(id, directData = null) {
     localStorage.setItem('aa_current_post_id', id);
 
-    const viewedKey = `viewed_post_${id}`;
-    if(dbClient && !sessionStorage.getItem(viewedKey)) {
+    const viewedKey = `viewed_post_${id}_${clientIP || 'unknown'}`;
+    
+    if(dbClient && !localStorage.getItem(viewedKey)) {
         try {
             const { error } = await dbClient.rpc('increment_views', { row_id: id });
             
@@ -1125,7 +1212,7 @@ async function readPost(id, directData = null) {
                     targetPost.views = (targetPost.views || 0) + 1; 
                     dbClient.from('posts').update({ views: targetPost.views }).eq('id', id).then(() => {});
                 }
-                sessionStorage.setItem(viewedKey, 'true');
+                localStorage.setItem(viewedKey, 'true'); 
             }
         } catch (e) {}
     }
@@ -1166,6 +1253,8 @@ async function readPost(id, directData = null) {
     }
     
     currentPostId = id;
+
+    document.title = `하포카 해결소 | ${post.title}`;
 
     const titleEl = document.getElementById('detail-title');
     if(titleEl) titleEl.innerText = post.title || '제목 없음';
@@ -1774,27 +1863,36 @@ async function submitComment() {
     let finalPw = pw;
     if(!isAdmin && pw) finalPw = await sha256(pw);
 
-    const { data, error } = await dbClient.rpc('create_comment_secure', {
-        p_post_id: currentPostId,
-        p_author: name,
-        p_password: finalPw,
-        p_content: finalContent
-    });
+    document.getElementById('global-loader').classList.remove('hidden');
 
-    if(error) {
-        showAlert("댓글 등록 실패: " + error.message);
-    } else {
-        const post = posts.find(p => p.id == currentPostId);
-        if(!post.comments) post.comments = [];
-        post.comments.push(data);
-        renderComments(post.comments);
+    try {
+        const { data, error } = await dbClient.rpc('create_comment_secure', {
+            p_post_id: currentPostId,
+            p_author: name,
+            p_password: finalPw,
+            p_content: finalContent
+        });
+
+        if(error) {
+            throw error;
+        } else {
+            const post = posts.find(p => p.id == currentPostId);
+            if(!post.comments) post.comments = [];
+            post.comments.push(data);
+            renderComments(post.comments);
+        }
+        
+        document.getElementById('cmtContent').value = '';
+        document.getElementById('cmtPw').value = '';
+        currentCommentImages = [];
+        renderCommentImagePreview();
+        cancelReply(); 
+
+    } catch (e) {
+        showAlert("댓글 등록 실패: " + e.message);
+    } finally {
+        document.getElementById('global-loader').classList.add('hidden');
     }
-    
-    document.getElementById('cmtContent').value = '';
-    document.getElementById('cmtPw').value = '';
-    currentCommentImages = [];
-    renderCommentImagePreview();
-    cancelReply(); 
 }
 
 function insertImage(inp) { 
@@ -2379,6 +2477,8 @@ async function submitPost() {
         postData.password = pw;
         postData.type = currentBoardType;
     }
+
+    document.getElementById('global-loader').classList.remove('hidden');
 
     await savePostToDB(postData);
 }
