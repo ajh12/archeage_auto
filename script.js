@@ -125,12 +125,14 @@ renderer.link = function(href, title, text) {
         const isGithub = h.includes('github.com');
         const isCommon = h.endsWith('.com') || h.endsWith('.net') || h.endsWith('.co.kr');
 
+        const finalTitle = cleanTitle || cleanHref;
+        const titleAttr = ` title="${finalTitle}"`;
+
         if (!isYoutube && !isGithub && !isCommon) {
-             return `<span class="text-slate-500 underline decoration-dotted cursor-help" title="연결되지 않는 링크입니다">${cleanText}</span>`;
+             return `<span class="text-slate-500 underline decoration-dotted cursor-help"${titleAttr}>${cleanText}</span>`;
         }
         
-        const titleAttr = cleanTitle ? ` title="${cleanTitle}"` : '';
-        return `<a href="${cleanHref}" target="_blank"${titleAttr} class="external-link">${cleanText}</a>`;
+        return `<a href="#" onclick="event.preventDefault(); confirmExternalLink('${cleanHref}'); return false;"${titleAttr} class="external-link">${cleanText}</a>`;
 
     } catch(e) {
         return cleanText;
@@ -142,6 +144,11 @@ marked.setOptions({
     gfm: true,
     renderer: renderer
 });
+
+function preprocessMarkdown(content) {
+    if (!content) return "";
+    return content.replace(/(\r\n|\n|\r)(={3,})(\s*)$/gm, '\n\n---\n');
+}
 
 function escapeHtml(text) { 
     if (!text) return text; 
@@ -1275,6 +1282,9 @@ async function readPost(id, directData = null) {
     const contentDiv = document.getElementById('detail-content');
     if(contentDiv) {
         let safeContent = post.content || ''; 
+        
+        safeContent = preprocessMarkdown(safeContent);
+
         let parsed = marked.parse(safeContent);
         
         contentDiv.innerHTML = sanitizeContent(parsed);
@@ -1599,8 +1609,9 @@ document.getElementById('editorContentMarkdown').addEventListener('input', updat
 
 function updateMarkdownPreview() {
     const raw = document.getElementById('editorContentMarkdown').value;
+    const processed = preprocessMarkdown(raw);
     const preview = document.getElementById('markdown-preview');
-    preview.innerHTML = sanitizeContent(marked.parse(raw));
+    preview.innerHTML = sanitizeContent(marked.parse(processed));
 }
 
 function execCmd(command, value = null) {
