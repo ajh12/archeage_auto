@@ -132,7 +132,7 @@ renderer.link = function(href, title, text) {
              return `<span class="text-slate-500 underline decoration-dotted cursor-help"${titleAttr}>${cleanText}</span>`;
         }
         
-        return `<a href="#" onclick="event.preventDefault(); confirmExternalLink('${cleanHref}'); return false;"${titleAttr} class="external-link">${cleanText}</a>`;
+        return `<a href="javascript:void(0)" onclick="event.preventDefault(); confirmExternalLink('${cleanHref}'); return false;"${titleAttr} class="external-link">${cleanText}</a>`;
 
     } catch(e) {
         return cleanText;
