@@ -361,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
             closeConfirm();
         };
     }
+
+    setupPasteHandlers(); 
 });
 
 async function fetchPosts(type, page = 1) {
@@ -1685,37 +1687,35 @@ function insertMarkdown(symbol) {
 
 async function uploadCommentImage(input) {
     if(input.files && input.files.length > 0) {
-        document.getElementById('global-loader').classList.remove('hidden');
-        try {
-            for (let i = 0; i < input.files.length; i++) {
-                const file = input.files[i];
-                
-                if (!file.type.match('image.*')) {
-                    showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
-                    continue; 
-                }
+        await processCommentImages(input.files);
+        input.value = '';
+    }
+}
 
-                if(dbClient) {
-                    try {
-                        const fileName = `cmt_img_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
-                        const { data, error } = await dbClient.storage.from('images').upload(fileName, file);
-                        if(!error) {
-                            const { data: { publicUrl } } = dbClient.storage.from('images').getPublicUrl(fileName);
-                            currentCommentImages.push(publicUrl);
-                        } else { throw error; }
-                    } catch(err) { 
-                        const reader = new FileReader();
-                        await new Promise((resolve) => {
-                            reader.onload = function(e) {
-                                currentCommentImages.push(e.target.result);
-                                resolve();
-                            };
-                            reader.readAsDataURL(file);
-                        });
-                    }
-                } else {
+async function processCommentImages(files) {
+    if(!files || files.length === 0) return;
+
+    document.getElementById('global-loader').classList.remove('hidden');
+    try {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            if (!file.type.match('image.*')) {
+                showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
+                continue; 
+            }
+
+            if(dbClient) {
+                try {
+                    const fileName = `cmt_img_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
+                    const { data, error } = await dbClient.storage.from('images').upload(fileName, file);
+                    if(!error) {
+                        const { data: { publicUrl } } = dbClient.storage.from('images').getPublicUrl(fileName);
+                        currentCommentImages.push(publicUrl);
+                    } else { throw error; }
+                } catch(err) { 
+                    const reader = new FileReader();
                     await new Promise((resolve) => {
-                        const reader = new FileReader();
                         reader.onload = function(e) {
                             currentCommentImages.push(e.target.result);
                             resolve();
@@ -1723,12 +1723,20 @@ async function uploadCommentImage(input) {
                         reader.readAsDataURL(file);
                     });
                 }
+            } else {
+                await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        currentCommentImages.push(e.target.result);
+                        resolve();
+                    };
+                    reader.readAsDataURL(file);
+                });
             }
-        } finally {
-            renderCommentImagePreview();
-            document.getElementById('global-loader').classList.add('hidden');
-            input.value = '';
         }
+    } finally {
+        renderCommentImagePreview();
+        document.getElementById('global-loader').classList.add('hidden');
     }
 }
 
@@ -1908,65 +1916,65 @@ async function submitComment() {
 
 function insertImage(inp) { 
     if(inp.files && inp.files[0]) { 
-        const file = inp.files[0];
-        
-        if (!file.type.match('image.*')) {
-            showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
-            inp.value = ''; 
-            return;
-        }
-
-        document.getElementById('global-loader').classList.remove('hidden');
-        
-        const insertToEditor = (url) => {
-             if (currentEditorMode === 'html') {
-                 const editor = document.getElementById('editorContentHtml');
-                 editor.focus();
-                 if (lastSelectionRange) {
-                     const sel = window.getSelection();
-                     sel.removeAllRanges();
-                     sel.addRange(lastSelectionRange);
-                 }
-                 document.execCommand('insertHTML', false, `<img src="${url}"><p><br></p>`);
-             } else {
-                 const textarea = document.getElementById('editorContentMarkdown');
-                 const start = textarea.selectionStart;
-                 const end = textarea.selectionEnd;
-                 const text = textarea.value;
-                 const newText = text.substring(0, start) + `\n![이미지](${url})\n` + text.substring(end);
-                 textarea.value = newText;
-                 textarea.focus();
-                 updateMarkdownPreview();
-             }
-        };
-
-        if(dbClient) {
-            const fileName = `img_${Date.now()}.${file.name.split('.').pop()}`;
-            dbClient.storage.from('images').upload(fileName, file)
-                .then(({ data, error }) => {
-                    if(error) throw error;
-                    const { data: { publicUrl } } = dbClient.storage.from('images').getPublicUrl(fileName);
-                    insertToEditor(publicUrl);
-                })
-                .catch(err => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) { insertToEditor(e.target.result); };
-                    reader.readAsDataURL(file);
-                })
-                .finally(() => {
-                    document.getElementById('global-loader').classList.add('hidden');
-                    inp.value = ''; 
-                });
-        } else {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                 insertToEditor(e.target.result);
-                 document.getElementById('global-loader').classList.add('hidden');
-                 inp.value = '';
-            };
-            reader.readAsDataURL(file);
-        }
+        processPostImage(inp.files[0]);
+        inp.value = ''; 
     } 
+}
+
+function processPostImage(file) {
+    if (!file.type.match('image.*')) {
+        showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
+        return;
+    }
+
+    document.getElementById('global-loader').classList.remove('hidden');
+    
+    const insertToEditor = (url) => {
+            if (currentEditorMode === 'html') {
+                const editor = document.getElementById('editorContentHtml');
+                editor.focus();
+                if (lastSelectionRange) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(lastSelectionRange);
+                }
+                document.execCommand('insertHTML', false, `<img src="${url}"><p><br></p>`);
+            } else {
+                const textarea = document.getElementById('editorContentMarkdown');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = textarea.value;
+                const newText = text.substring(0, start) + `\n![이미지](${url})\n` + text.substring(end);
+                textarea.value = newText;
+                textarea.focus();
+                updateMarkdownPreview();
+            }
+    };
+
+    if(dbClient) {
+        const fileName = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${(file.name || 'image.png').split('.').pop()}`;
+        dbClient.storage.from('images').upload(fileName, file)
+            .then(({ data, error }) => {
+                if(error) throw error;
+                const { data: { publicUrl } } = dbClient.storage.from('images').getPublicUrl(fileName);
+                insertToEditor(publicUrl);
+            })
+            .catch(err => {
+                const reader = new FileReader();
+                reader.onload = function(e) { insertToEditor(e.target.result); };
+                reader.readAsDataURL(file);
+            })
+            .finally(() => {
+                document.getElementById('global-loader').classList.add('hidden');
+            });
+    } else {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+                insertToEditor(e.target.result);
+                document.getElementById('global-loader').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
 function openLightbox(src) {
@@ -2584,6 +2592,53 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+function setupPasteHandlers() {
+    const handlePaste = (e, callback) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        const files = [];
+        let hasImage = false;
+
+        for (const item of items) {
+            if (item.type.indexOf('image') === 0) {
+                files.push(item.getAsFile());
+                hasImage = true;
+            }
+        }
+
+        if (hasImage) {
+            e.preventDefault(); 
+            callback(files);
+        }
+    };
+
+    const htmlEditor = document.getElementById('editorContentHtml');
+    if(htmlEditor) {
+        htmlEditor.addEventListener('paste', (e) => {
+            handlePaste(e, (files) => {
+                if(files.length > 0) processPostImage(files[0]); 
+            });
+        });
+    }
+
+    const mdEditor = document.getElementById('editorContentMarkdown');
+    if(mdEditor) {
+        mdEditor.addEventListener('paste', (e) => {
+             handlePaste(e, (files) => {
+                if(files.length > 0) processPostImage(files[0]);
+            });
+        });
+    }
+
+    const cmtInput = document.getElementById('cmtContent');
+    if(cmtInput) {
+        cmtInput.addEventListener('paste', (e) => {
+             handlePaste(e, (files) => {
+                processCommentImages(files); 
+            });
+        });
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('cmt-drop-zone');
