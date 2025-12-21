@@ -35,7 +35,7 @@ if (!window.hasMainJsRun) {
             htmlEditor.addEventListener('focus', saveSelection);
         }
 
-        const toolbarButtons = document.querySelectorAll('#html-toolbar button, #btn-font-size');
+        const toolbarButtons = document.querySelectorAll('#toolbar-html button, #btn-font-size');
         toolbarButtons.forEach(btn => {
             btn.addEventListener('mousedown', (e) => {
                 e.preventDefault(); 
@@ -145,22 +145,15 @@ if (!window.hasMainJsRun) {
     function updateToolbarState() {
         if (currentEditorMode !== 'html') return;
 
-        const map = {
-            'bold': 'btn-bold',
-            'italic': 'btn-italic',
-            'underline': 'btn-underline',
-            'strikeThrough': 'btn-strikethrough',
-            'justifyLeft': 'btn-justifyLeft',
-            'justifyCenter': 'btn-justifyCenter',
-            'justifyRight': 'btn-justifyRight'
-        };
+        const commands = [
+            'bold', 'italic', 'underline', 'strikeThrough', 
+            'justifyLeft', 'justifyCenter', 'justifyRight'
+        ];
 
-        for (var cmd in map) {
-            var btnId = map[cmd];
-            var btn = document.getElementById(btnId);
-            
+        commands.forEach(cmd => {
+            const btn = document.querySelector(`#toolbar-html button[onclick*="'${cmd}'"]`);
             if (btn) {
-                var isActive = false;
+                let isActive = false;
                 try {
                     isActive = document.queryCommandState(cmd);
                 } catch(e) {}
@@ -173,14 +166,14 @@ if (!window.hasMainJsRun) {
                     btn.classList.add('text-slate-600', 'hover:bg-slate-200');
                 }
             }
-        }
+        });
         
         try {
             const size = document.queryCommandValue('fontSize');
-            const sizeLabelMap = { '1': '작게', '3': '보통', '5': '크게', '7': '아주 크게' };
+            const sizeLabelMap = { '1': '작게', '3': '본문', '5': '제목', '7': '특대' };
             const sizeTxt = document.getElementById('txt-font-size');
             if (sizeTxt) {
-                sizeTxt.innerText = sizeLabelMap[size + ""] || '크기';
+                sizeTxt.innerText = sizeLabelMap[size + ""] || '본문';
             }
         } catch(e) {}
     }
@@ -666,8 +659,8 @@ if (!window.hasMainJsRun) {
         const titles = { notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'} };
         const tEl = document.getElementById('board-title');
         const dEl = document.getElementById('board-desc');
-        if(tEl && titles[type]) tEl.innerText = titles[type].t;
-        if(dEl && titles[type]) dEl.innerText = titles[type].d;
+        if(tEl && titles[currentBoardType]) tEl.innerText = titles[currentBoardType].t;
+        if(dEl && titles[currentBoardType]) dEl.innerText = titles[currentBoardType].d;
         
         const toggles = document.getElementById('view-toggles');
         if(toggles) toggles.classList.toggle('hidden', currentBoardType !== 'error');
