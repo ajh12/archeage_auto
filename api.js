@@ -1,9 +1,7 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+var dbClient = null;
+var clientIP = "1.2.3.4";
 
-let dbClient = null;
-let clientIP = "1.2.3.4";
-
-export function initSupabase(authCallback) {
+function initSupabase(authCallback) {
     try {
         if(SUPABASE_URL && SUPABASE_ANON_KEY) {
             const { createClient } = window.supabase; 
@@ -20,9 +18,9 @@ export function initSupabase(authCallback) {
     return null;
 }
 
-export function getDbClient() { return dbClient; }
+function getDbClient() { return dbClient; }
 
-export async function fetchClientIP() {
+async function fetchClientIP() {
     try {
         const response = await fetch('https://api64.ipify.org?format=json');
         const data = await response.json();
@@ -33,9 +31,9 @@ export async function fetchClientIP() {
     return clientIP;
 }
 
-export function getClientIP() { return clientIP; }
+function getClientIP() { return clientIP; }
 
-export async function verifyCaptcha(token) {
+async function verifyCaptcha(token) {
     if (!dbClient) return false;
     
     try {
@@ -63,7 +61,7 @@ export async function verifyCaptcha(token) {
     }
 }
 
-export async function recordVisit() {
+async function recordVisit() {
     if(!dbClient) return;
     
     const today = new Date().toISOString().split('T')[0];
@@ -84,7 +82,7 @@ export async function recordVisit() {
     }
 }
 
-export async function fetchVersion() {
+async function fetchVersion() {
     try {
         const r = await fetch('https://raw.githubusercontent.com/Pretsg/Archeage_auto/main/version.txt');
         const t = await r.text();
@@ -96,7 +94,7 @@ export async function fetchVersion() {
     }
 }
 
-export async function uploadImage(file) {
+async function uploadImage(file) {
     if (!dbClient) return null;
     const fileName = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${(file.name || 'image.png').split('.').pop()}`;
     const { data, error } = await dbClient.storage.from('images').upload(fileName, file);
