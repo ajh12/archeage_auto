@@ -1,12 +1,12 @@
-export const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-export const RECAPTCHA_SITE_KEY = '6LeCozEsAAAAAIcJ8W96QeQpaadZxd_YA7p3Ao4U';
+const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
+const RECAPTCHA_SITE_KEY = '6LeCozEsAAAAAIcJ8W96QeQpaadZxd_YA7p3Ao4U';
 
-export const ENABLE_SNOW = true; 
-export const PAGE_SIZE = 10;
-export const ADMIN_PAGE_SIZE = 10;
+const ENABLE_SNOW = true; 
+const PAGE_SIZE = 10;
+const ADMIN_PAGE_SIZE = 10;
 
-export const ROUTE_MAP = {
+const ROUTE_MAP = {
     'home': 'fme120e0f',        
     'notice': '5a105e8b',  
     'free': 'ad023482',    
@@ -17,7 +17,7 @@ export const ROUTE_MAP = {
     'detail': 'e29a1c3f'   
 };
 
-export const PAGE_TITLES = {
+const PAGE_TITLES = {
     'home': '하포카 해결소',
     'notice': '하포카 해결소 | 공지사항',
     'free': '하포카 해결소 | 자유대화방',
@@ -28,7 +28,24 @@ export const PAGE_TITLES = {
     'detail': '하포카 해결소' 
 };
 
-export const particlesConfig = {
+var posts = [];
+var currentBoardType = 'error';
+var isAdmin = false;
+var lastPage = 'home';
+var errorViewMode = 'grid';
+var currentPostId = null;
+var isWriting = false;
+var editingPostId = null; 
+var editingCommentId = null;
+var currentCommentImages = []; 
+var replyingToCommentId = null; 
+var replyingToCommentAuthor = null;
+var currentEditorMode = 'html'; 
+var isBanned = false;
+var currentPage = 1;
+var totalCount = 0;
+
+const particlesConfig = {
   "particles": {
     "number": { "value": 100, "density": { "enable": true, "value_area": 800 } },
     "color": { "value": "#ffffff" },
