@@ -918,8 +918,7 @@ if (!window.hasMainJsRun) {
                     return showAlert(
                         "보안 검증(봇 탐지)에 실패했습니다.\n\n" +
                         "1. 현재 '시크릿 모드'를 사용 중이라면 해제해주세요.\n" +
-                        "2. VPN이나 광고 차단 확장 프로그램을 끄고 시도해주세요.\n\n" +
-                        "(Google reCAPTCHA 점수 미달)"
+                        "2. VPN이나 광고 차단 확장 프로그램을 끄고 시도해주세요.\n\n"
                     );
                 }
                 
@@ -1141,7 +1140,7 @@ if (!window.hasMainJsRun) {
 
         if (!target) return showAlert("항목을 찾을 수 없습니다.");
         if(isAdmin) { executeAction(actionType, targetId, target); return; }
-        if(target.author === '하포카' || target.author === 'Admin') return showAlert("관리자 항목은 수정불가");
+        if(target.author === '하포카' || target.author === 'Admin') return showAlert("공지사항 수정 및 삭제 불가");
 
         pendingActionType = actionType;
         pendingTargetId = targetId;
@@ -1268,6 +1267,11 @@ if (!window.hasMainJsRun) {
 
     function reportCurrentPost() {
         if(!getDbClient() || !currentPostId) return showAlert("오프라인 상태에서는 신고할 수 없습니다.");
+
+        const post = posts.find(p => p.id == currentPostId);
+        if(post && post.type === 'notice') {
+            return showAlert("공지사항은 신고할 수 없습니다.");
+        }
 
         showConfirm("정말 이 게시글을 신고하시겠습니까?", async () => {
             if (isAdmin) {
