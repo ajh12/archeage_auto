@@ -1405,6 +1405,28 @@ if (!window.hasMainJsRun) {
         try {
             if(typeof showGlobalLoader === 'function') showGlobalLoader(true);
             
+            if (!isAdmin) {
+                let currentImageCount = 0;
+                if (mode === 'html') {
+                    const editor = document.getElementById('editorContentHtml');
+                    if (editor) currentImageCount = editor.getElementsByTagName('img').length;
+                } else {
+                    const md = document.getElementById('editorContentMarkdown').value;
+                    const matches = md.match(/!\[.*?\]\(.*?\)/g);
+                    currentImageCount = matches ? matches.length : 0;
+                }
+
+                if (currentImageCount >= 5) {
+                    if(typeof showAlert === 'function') showAlert("게시글에는 이미지를 최대 5장까지만 첨부할 수 있습니다.");
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    if(typeof showAlert === 'function') showAlert("이미지 용량은 10MB를 초과할 수 없습니다.");
+                    return;
+                }
+            }
+
             let imageUrl = null;
             if (typeof uploadImage === 'function') {
                  try {
@@ -1436,7 +1458,22 @@ if (!window.hasMainJsRun) {
     }
 
     function processCommentImages(files, currentImagesArray, renderCallback) {
-        Array.from(files).forEach(file => {
+        let fileArray = Array.from(files);
+        
+        if (!isAdmin) {
+            if (currentImagesArray.length + fileArray.length > 3) {
+                if(typeof showAlert === 'function') showAlert("댓글에는 이미지를 최대 3장까지만 첨부할 수 있습니다.");
+                return;
+            }
+
+            const oversizeFile = fileArray.find(f => f.size > 10 * 1024 * 1024);
+            if (oversizeFile) {
+                if(typeof showAlert === 'function') showAlert("이미지 용량은 10MB를 초과할 수 없습니다.");
+                return;
+            }
+        }
+
+        fileArray.forEach(file => {
             if (typeof uploadImage === 'function') {
                 uploadImage(file).then(url => {
                      currentImagesArray.push(url);
