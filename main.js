@@ -2,6 +2,8 @@ var pendingActionType = null;
 var pendingTarget = null;
 var pendingTargetId = null;
 
+var lastEditorRange = null;
+
 if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
     window.currentEditorMode = 'html'; 
@@ -11,6 +13,35 @@ if (!window.hasMainJsRun) {
     const originalSwitchEditorTab = (typeof window.switchEditorTab === 'function') ? window.switchEditorTab : null;
 
     document.addEventListener('DOMContentLoaded', () => {
+        const htmlEditor = document.getElementById('editorContentHtml');
+        if (htmlEditor) {
+            try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
+
+            const saveSelection = () => {
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    if (htmlEditor.contains(range.commonAncestorContainer)) {
+                        lastEditorRange = range;
+                    }
+                }
+                setTimeout(updateToolbarState, 0);
+            };
+
+            htmlEditor.addEventListener('keyup', saveSelection);
+            htmlEditor.addEventListener('mouseup', saveSelection);
+            htmlEditor.addEventListener('mouseleave', saveSelection); 
+            htmlEditor.addEventListener('input', saveSelection);
+            htmlEditor.addEventListener('focus', saveSelection);
+        }
+
+        const toolbarButtons = document.querySelectorAll('#html-toolbar button, #btn-font-size');
+        toolbarButtons.forEach(btn => {
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault(); 
+            });
+        });
+
         window.addEventListener('beforeunload', (e) => {
             if (window.isWriting) {
                 e.preventDefault();
@@ -98,6 +129,61 @@ if (!window.hasMainJsRun) {
             }
         }
     });
+
+    function restoreSelection() {
+        const htmlEditor = document.getElementById('editorContentHtml');
+        if (lastEditorRange && htmlEditor) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(lastEditorRange);
+            htmlEditor.focus(); 
+        } else if (htmlEditor) {
+            htmlEditor.focus();
+        }
+    }
+
+    function updateToolbarState() {
+        if (currentEditorMode !== 'html') return;
+
+        const map = {
+            'bold': 'btn-bold',
+            'italic': 'btn-italic',
+            'underline': 'btn-underline',
+            'strikeThrough': 'btn-strikethrough',
+            'justifyLeft': 'btn-justifyLeft',
+            'justifyCenter': 'btn-justifyCenter',
+            'justifyRight': 'btn-justifyRight'
+        };
+
+        for (var cmd in map) {
+            var btnId = map[cmd];
+            var btn = document.getElementById(btnId);
+            
+            if (btn) {
+                var isActive = false;
+                try {
+                    isActive = document.queryCommandState(cmd);
+                } catch(e) {}
+                
+                if (isActive) {
+                    btn.classList.add('text-blue-600', 'bg-blue-50');
+                    btn.classList.remove('text-slate-600', 'hover:bg-slate-200');
+                } else {
+                    btn.classList.remove('text-blue-600', 'bg-blue-50');
+                    btn.classList.add('text-slate-600', 'hover:bg-slate-200');
+                }
+            }
+        }
+        
+        try {
+            const size = document.queryCommandValue('fontSize');
+            const sizeLabelMap = { '1': '작게', '3': '보통', '5': '크게', '7': '아주 크게' };
+            const sizeTxt = document.getElementById('txt-font-size');
+            if (sizeTxt) {
+                sizeTxt.innerText = sizeLabelMap[size + ""] || '크기';
+            }
+        } catch(e) {}
+    }
 
     window.onload = () => { 
         const loader = document.getElementById('global-loader');
@@ -309,9 +395,13 @@ if (!window.hasMainJsRun) {
         if(editorMd) editorMd.value='';
         const mdPreview = document.getElementById('markdown-preview');
         if(mdPreview) mdPreview.innerHTML='';
+        
+        lastEditorRange = null;
 
         window.switchEditorTab('html');
         window.router('write');
+        
+        setTimeout(updateToolbarState, 100);
     }
 
     window.searchBoard = function() {
@@ -380,9 +470,18 @@ if (!window.hasMainJsRun) {
         if(typeof execCmd === 'function' && execCmd !== window.execCmd) {
             execCmd(command, value);
         } else {
+            restoreSelection();
+            
             document.execCommand(command, false, value);
+            
             const editor = document.getElementById('editorContentHtml');
-            if(editor) editor.focus();
+            if(editor) {
+                editor.focus();
+                const sel = window.getSelection();
+                if(sel.rangeCount > 0) lastEditorRange = sel.getRangeAt(0);
+                
+                setTimeout(updateToolbarState, 0);
+            }
         }
     };
 
@@ -402,10 +501,16 @@ if (!window.hasMainJsRun) {
     };
     
     window.applyFontSize = (size, label) => {
+        restoreSelection();
         window.execCmd('fontSize', size);
+        
         const txt = document.getElementById('txt-font-size');
         if(txt) txt.innerText = label;
         document.getElementById('menu-font-size').classList.add('hidden');
+        
+        const sel = window.getSelection();
+        if(sel.rangeCount > 0) lastEditorRange = sel.getRangeAt(0);
+        setTimeout(updateToolbarState, 0); 
     };
 
     window.submitPost = submitPost;
@@ -1062,7 +1167,8 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    return showAlert("비밀번호 확인 중 오류가 발생했습니다.");
+                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
+                    else return showAlert("오류 발생: " + error.message);
                 }
                 
                 if (data === true) isValid = true;
@@ -1074,7 +1180,8 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    return showAlert("비밀번호 확인 중 오류가 발생했습니다.");
+                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
+                     else return showAlert("오류 발생: " + error.message);
                 }
 
                 if (data === true) isValid = true;
