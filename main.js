@@ -1042,7 +1042,7 @@ if (!window.hasMainJsRun) {
     }
 
     async function confirmPasswordAction() {
-        const inputPw = document.getElementById('verificationPw').value;
+        const inputPw = document.getElementById('verificationPw').value.trim();
         if(!inputPw) return showAlert("비밀번호 입력 필요");
         if (!pendingTarget) return closePasswordModal();
         
@@ -1053,18 +1053,35 @@ if (!window.hasMainJsRun) {
         
         let isValid = false;
         
-        if (pendingActionType.includes('post')) {
-            const { data, error } = await dbClient.rpc('check_post_pw', { 
-                post_id: pendingTargetId, 
-                input_hash: hashedInput 
-            });
-            if (!error && data === true) isValid = true;
-        } else {
-            const { data, error } = await dbClient.rpc('check_comment_pw', { 
-                comment_id: pendingTargetId, 
-                input_hash: hashedInput 
-            });
-            if (!error && data === true) isValid = true;
+        try {
+            if (pendingActionType.includes('post')) {
+                const { data, error } = await dbClient.rpc('check_post_pw', { 
+                    post_id: pendingTargetId, 
+                    input_hash: hashedInput 
+                });
+                
+                if (error) {
+                    console.error("Password check error:", error);
+                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
+                }
+                
+                if (!error && data === true) isValid = true;
+            } else {
+                const { data, error } = await dbClient.rpc('check_comment_pw', { 
+                    comment_id: pendingTargetId, 
+                    input_hash: hashedInput 
+                });
+                
+                if (error) {
+                    console.error("Password check error:", error);
+                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
+                }
+
+                if (!error && data === true) isValid = true;
+            }
+        } catch (e) {
+            console.error("System error:", e);
+            return showAlert("시스템 오류 발생");
         }
 
         if(isValid) {
