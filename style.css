@@ -103,6 +103,21 @@ body {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+
+#editorContentHtml b, #editorContentHtml strong {
+    font-weight: 700 !important;
+    color: #0f172a;
+}
+#editorContentHtml u {
+    text-decoration: underline !important;
+}
+#editorContentHtml i, #editorContentHtml em {
+    font-style: italic !important;
+}
+#editorContentHtml s, #editorContentHtml strike {
+    text-decoration: line-through !important;
+}
+
 .toolbar-btn { 
     transition: all 0.1s ease-in-out; 
     color: #64748b; 
@@ -219,7 +234,7 @@ body {
     z-index: 10000;
     justify-content: center;
     align-items: center;
-    cursor: zoom-out;
+    cursor: default; 
 }
 #lightbox img {
     max-width: 95%;
