@@ -314,7 +314,6 @@ if (!window.hasMainJsRun) {
         window.router('write');
     }
 
-    // 게시판 검색 트리거
     window.searchBoard = function() {
         fetchPosts(currentBoardType, 1);
     };
@@ -440,7 +439,6 @@ if (!window.hasMainJsRun) {
                         if (error) throw error;
                         showAlert("관리자 권한으로 신고 처리되었습니다.");
                         
-                        // [수정] 즉시 UI 반영
                         const post = posts.find(p => p.id == currentPostId);
                         if(post && post.comments) {
                             const target = post.comments.find(c => c.id == id);
@@ -456,7 +454,6 @@ if (!window.hasMainJsRun) {
                 if(error) showAlert(error.message); 
                 else {
                     showAlert("신고 접수됨");
-                    // [수정] 즉시 UI 반영
                     const post = posts.find(p => p.id == currentPostId);
                     if(post && post.comments) {
                         const target = post.comments.find(c => c.id == id);
@@ -1065,8 +1062,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.\n(check_post_pw 함수가 없거나 인자 불일치)");
-                    else return showAlert("오류 발생: " + error.message);
+                    return showAlert("비밀번호 확인 중 오류가 발생했습니다.");
                 }
                 
                 if (data === true) isValid = true;
@@ -1078,8 +1074,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.\n(check_comment_pw 함수가 없거나 인자 불일치)");
-                     else return showAlert("오류 발생: " + error.message);
+                    return showAlert("비밀번호 확인 중 오류가 발생했습니다.");
                 }
 
                 if (data === true) isValid = true;
@@ -1097,7 +1092,7 @@ if (!window.hasMainJsRun) {
             pendingActionType = null;
             setTimeout(() => executeAction(a, i, t), 300);
         } else {
-            showAlert("비밀번호 불일치\n(입력한 값: " + inputPw + ")");
+            showAlert("비밀번호 불일치");
             document.getElementById('verificationPw').value = '';
         }
     }
@@ -1163,7 +1158,6 @@ if (!window.hasMainJsRun) {
         if(!getDbClient() || !currentPostId) return showAlert("오프라인 상태에서는 신고할 수 없습니다.");
 
         showConfirm("정말 이 게시글을 신고하시겠습니까?", async () => {
-            // [수정] 관리자일 경우 권한으로 무제한 신고
             if (isAdmin) {
                 try {
                     const { data: post } = await getDbClient().from('posts').select('reports').eq('id', currentPostId).single();
