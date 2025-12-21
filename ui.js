@@ -533,6 +533,20 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
         ipTag = '<span class="text-red-300 text-[10px] ml-1">(' + rawIp + ')</span>';
     }
 
+    var content = node.displayContent;
+    var isLongContent = content.length > 300;
+    var shortContent = isLongContent ? content.substring(0, 300) + '...' : content;
+    
+    var contentHtml = '';
+    if (isLongContent) {
+        contentHtml = 
+            '<div class="comment-content-short text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
+            '<div class="comment-content-full hidden text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
+            '<button class="text-blue-500 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="this.previousElementSibling.classList.remove(\'hidden\'); this.previousElementSibling.previousElementSibling.classList.add(\'hidden\'); this.remove();">...더보기</button>';
+    } else {
+        contentHtml = '<div class="text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
+    }
+
     var html = 
         '<div class="flex gap-3 group mb-3 ' + wrapperClass + '">' +
             indicator +
@@ -551,7 +565,7 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
                         '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'delete_comment\')" class="text-slate-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>' +
                     '</div>' +
                 '</div>' +
-                '<div class="text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + node.displayContent + '</div>' +
+                contentHtml + 
             '</div>' +
         '</div>';
     
