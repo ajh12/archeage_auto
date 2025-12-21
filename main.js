@@ -1047,8 +1047,7 @@ if (!window.hasMainJsRun) {
                     return showAlert(
                         "보안 검증(봇 탐지)에 실패했습니다.\n\n" +
                         "1. 현재 '시크릿 모드'를 사용 중이라면 해제해주세요.\n" +
-                        "2. VPN이나 광고 차단 확장 프로그램을 끄고 시도해주세요.\n\n" +
-                        "(Google reCAPTCHA 점수 미달)"
+                        "2. VPN이나 광고 차단 확장 프로그램을 끄고 시도해주세요.\n\n"
                     );
                 }
             } catch (e) {
