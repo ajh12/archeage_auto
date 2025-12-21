@@ -1,242 +1,470 @@
-import { preprocessMarkdown, sanitizeContent } from './utils.js';
-import { uploadImage } from './api.js';
-import { showAlert } from './ui.js';
+let isMarkdownMode = false;
+let autoSaveInterval = null;
+let lastRange = null;
 
-let lastSelectionRange = null;
-
-export function switchEditorTab(tab) {
-    const htmlBtn = document.getElementById('tab-html');
-    const mdBtn = document.getElementById('tab-markdown');
-    
-    const htmlToolbar = document.getElementById('html-toolbar');
-    const mdToolbar = document.getElementById('markdown-toolbar');
-    
-    const htmlArea = document.getElementById('editorContentHtml');
-    const mdContainer = document.getElementById('markdown-container');
-    const mdArea = document.getElementById('editorContentMarkdown');
-
-    if (tab === 'html') {
-        htmlBtn.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-white";
-        mdBtn.className = "flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700";
-        
-        htmlToolbar.classList.remove('hidden');
-        mdToolbar.classList.add('hidden');
-        
-        htmlArea.classList.remove('hidden');
-        mdContainer.classList.add('hidden');
-        
-        if (mdArea.value.trim().length > 0 && htmlArea.innerHTML.trim().length === 0) {
-             htmlArea.innerHTML = marked.parse(mdArea.value);
-        }
-    } else {
-        htmlBtn.className = "flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700";
-        mdBtn.className = "flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-white";
-        
-        htmlToolbar.classList.add('hidden');
-        mdToolbar.classList.remove('hidden');
-        
-        htmlArea.classList.add('hidden');
-        mdContainer.classList.remove('hidden');
-        
-        updateMarkdownPreview();
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof marked !== 'undefined') {
+        const renderer = new marked.Renderer();
+        renderer.link = function(href, title, text) {
+            return `<a href="${href}" target="_blank" class="text-blue-600 hover:underline" title="${title || ''}">${text}</a>`;
+        };
+        marked.use({ renderer });
     }
-    return tab;
-}
 
-export function updateMarkdownPreview() {
-    const raw = document.getElementById('editorContentMarkdown').value;
-    const processed = preprocessMarkdown(raw);
-    const preview = document.getElementById('markdown-preview');
-    preview.innerHTML = sanitizeContent(marked.parse(processed));
-}
+    
+    if (typeof window.router === 'function') {
+        const originalRouter = window.router;
+        window.router = function(page, pushHistory = true) {
+            
+            if (page !== 'write') {
+                clearTempPost();
+            }
 
-export function execCmd(command, value = null) {
-    document.execCommand(command, false, value);
-    document.getElementById('editorContentHtml').focus();
-    updateToolbar(); 
-}
+            originalRouter(page, pushHistory);
 
-export function updateToolbar() {
-    const commands = [
-        { cmd: 'bold', id: 'btn-bold' },
-        { cmd: 'italic', id: 'btn-italic' },
-        { cmd: 'underline', id: 'btn-underline' },
-        { cmd: 'strikeThrough', id: 'btn-strikethrough' },
-        { cmd: 'justifyLeft', id: 'btn-justifyLeft' },
-        { cmd: 'justifyCenter', id: 'btn-justifyCenter' },
-        { cmd: 'justifyRight', id: 'btn-justifyRight' }
-    ];
+            if (page === 'write' && typeof window.editingPostId !== 'undefined' && window.editingPostId) {
+                setTimeout(() => saveTempPost(), 200);
+            }
+        };
+    }
 
-    commands.forEach(item => {
-        const btn = document.getElementById(item.id);
+    const htmlEditor = document.getElementById('editorContentHtml');
+    const mdEditor = document.getElementById('editorContentMarkdown');
+    const titleInput = document.getElementById('inputTitle');
+    const nameInput = document.getElementById('inputName');
+
+    const autoSaveHandler = () => saveTempPost();
+
+    if (htmlEditor) {
+        htmlEditor.addEventListener('input', autoSaveHandler);
+        
+        const saveSelection = () => {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                if (htmlEditor.contains(range.commonAncestorContainer)) {
+                    lastRange = range.cloneRange();
+                }
+            }
+            updateToolbarState();
+        };
+
+        htmlEditor.addEventListener('keyup', saveSelection);
+        htmlEditor.addEventListener('mouseup', saveSelection);
+        htmlEditor.addEventListener('click', saveSelection);
+        htmlEditor.addEventListener('input', saveSelection);
+    }
+
+    if (mdEditor) {
+        mdEditor.addEventListener('input', updateMarkdownPreview);
+        mdEditor.addEventListener('input', autoSaveHandler);
+    }
+    if (titleInput) titleInput.addEventListener('input', autoSaveHandler);
+    if (nameInput) nameInput.addEventListener('input', autoSaveHandler);
+});
+
+function updateToolbarState() {
+    const commands = ['bold', 'italic', 'underline', 'strikethrough', 'justifyLeft', 'justifyCenter', 'justifyRight'];
+    
+    commands.forEach(cmd => {
+        const btnId = 'btn-' + cmd;
+        const btn = document.getElementById(btnId);
         if (btn) {
-            if (document.queryCommandState(item.cmd)) {
-                btn.classList.add('active');
+            const state = document.queryCommandState(cmd);
+            if (state) {
+                btn.classList.add('active', 'bg-blue-100', 'text-blue-600', 'border-blue-200');
             } else {
-                btn.classList.remove('active');
+                btn.classList.remove('active', 'bg-blue-100', 'text-blue-600', 'border-blue-200');
             }
         }
     });
 }
 
-export function insertMarkdown(symbol) {
+window.insertHtmlAtCursor = function(html) {
+    const editor = document.getElementById('editorContentHtml');
+    if (!editor) return;
+
+    if (lastRange) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(lastRange);
+    } else {
+        editor.focus();
+    }
+
+    const success = document.execCommand('insertHTML', false, html);
+
+    if (!success) {
+        const sel = window.getSelection();
+        if (sel.getRangeAt && sel.rangeCount) {
+            let range = sel.getRangeAt(0);
+            range.deleteContents();
+            
+            const div = document.createElement("div");
+            div.innerHTML = html;
+            const frag = document.createDocumentFragment();
+            let node, lastNode;
+            while ((node = div.firstChild)) {
+                lastNode = frag.appendChild(node);
+            }
+            range.insertNode(frag);
+
+            if (lastNode) {
+                range = range.cloneRange();
+                range.setStartAfter(lastNode);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                lastRange = range.cloneRange();
+            }
+        }
+    } else {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            lastRange = sel.getRangeAt(0).cloneRange();
+        }
+    }
+    
+    saveTempPost();
+};
+
+function switchEditorTab(mode) {
+    const tabHtml = document.getElementById('tab-html');
+    const tabMarkdown = document.getElementById('tab-markdown');
+    const htmlToolbar = document.getElementById('html-toolbar');
+    const markdownToolbar = document.getElementById('markdown-toolbar');
+    const editorContentHtml = document.getElementById('editorContentHtml');
+    const markdownContainer = document.getElementById('markdown-container');
+
+    syncEditorContent(mode);
+
+    if (mode === 'html') {
+        isMarkdownMode = false;
+        
+        tabHtml.classList.add('border-blue-600', 'text-blue-600', 'bg-white');
+        tabHtml.classList.remove('text-slate-500');
+        tabMarkdown.classList.remove('border-blue-600', 'text-blue-600', 'bg-white');
+        tabMarkdown.classList.add('text-slate-500');
+        
+        htmlToolbar.classList.remove('hidden');
+        markdownToolbar.classList.add('hidden');
+        editorContentHtml.classList.remove('hidden');
+        markdownContainer.classList.add('hidden');
+    } else {
+        isMarkdownMode = true;
+        
+        tabMarkdown.classList.add('border-blue-600', 'text-blue-600', 'bg-white');
+        tabMarkdown.classList.remove('text-slate-500');
+        tabHtml.classList.remove('border-blue-600', 'text-blue-600', 'bg-white');
+        tabHtml.classList.add('text-slate-500');
+
+        htmlToolbar.classList.add('hidden');
+        markdownToolbar.classList.remove('hidden');
+        editorContentHtml.classList.add('hidden');
+        markdownContainer.classList.remove('hidden');
+        markdownContainer.classList.add('flex'); 
+        
+        updateMarkdownPreview();
+    }
+
+    if (typeof window.currentEditorMode !== 'undefined') {
+        window.currentEditorMode = mode;
+    }
+}
+
+function syncEditorContent(targetMode) {
+    const htmlEditor = document.getElementById('editorContentHtml');
+    const mdEditor = document.getElementById('editorContentMarkdown');
+
+    if (targetMode === 'html') {
+        if (mdEditor.value.trim() !== '') {
+            htmlEditor.innerHTML = marked.parse(mdEditor.value);
+        }
+    } else {
+        if (htmlEditor.innerText.trim() !== '' || htmlEditor.innerHTML.includes('<img') || htmlEditor.innerHTML.includes('<iframe')) {
+            mdEditor.value = htmlToMarkdown(htmlEditor.innerHTML);
+            updateMarkdownPreview();
+        }
+    }
+}
+
+function htmlToMarkdown(html) {
+    let text = html;
+    text = text.replace(/<div[^>]*>/gi, '\n');
+    text = text.replace(/<\/div>/gi, '');
+    text = text.replace(/<p[^>]*>/gi, '');
+    text = text.replace(/<\/p>/gi, '\n\n');
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    text = text.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+    text = text.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+    text = text.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+    text = text.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+    text = text.replace(/<u[^>]*>(.*?)<\/u>/gi, '$1'); 
+    text = text.replace(/<s[^>]*>(.*?)<\/s>/gi, '~~$1~~');
+    text = text.replace(/<strike[^>]*>(.*?)<\/strike>/gi, '~~$1~~');
+    
+    text = text.replace(/<img[^>]+src="([^">]+)"[^>]*>/gi, '\n![이미지]($1)\n');
+    
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&amp;/g, '&');
+    return text.trim();
+}
+
+function updateMarkdownPreview() {
+    const mdText = document.getElementById('editorContentMarkdown').value;
+    const preview = document.getElementById('markdown-preview');
+    if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
+        preview.innerHTML = DOMPurify.sanitize(marked.parse(mdText));
+    } else {
+        preview.innerText = mdText;
+    }
+}
+
+function execCmd(command, value = null) {
+    const editor = document.getElementById('editorContentHtml');
+    editor.focus();
+    if(lastRange) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(lastRange);
+    }
+    document.execCommand(command, false, value);
+    editor.focus();
+    updateToolbarState();
+    saveTempPost(); 
+}
+
+function toggleFontSizeDropdown() {
+    const menu = document.getElementById('menu-font-size');
+    menu.classList.toggle('hidden');
+}
+
+function applyFontSize(size, label) {
+    execCmd('fontSize', size);
+    const txt = document.getElementById('txt-font-size');
+    if(txt) txt.innerText = label;
+    document.getElementById('menu-font-size').classList.add('hidden');
+}
+
+function insertMarkdown(syntax) {
     const textarea = document.getElementById('editorContentMarkdown');
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = textarea.value;
     const before = text.substring(0, start);
     const after = text.substring(end, text.length);
-    const selection = text.substring(start, end);
-
-    let newText = "";
-    if (symbol === '`' && selection.includes('\n')) {
-        newText = before + "```\n" + selection + "\n```" + after;
-    } else {
-        newText = before + symbol + selection + symbol + after;
-    }
     
-    textarea.value = newText;
+    textarea.value = before + syntax + after;
+    
+    textarea.selectionStart = textarea.selectionEnd = start + syntax.length;
     textarea.focus();
-    updateMarkdownPreview();
-}
-
-export function saveSelection() {
-    const editor = document.getElementById('editorContentHtml');
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
-        lastSelectionRange = sel.getRangeAt(0);
-    }
-}
-
-export async function processPostImage(file, currentEditorMode) {
-    if (!file.type.match('image.*')) {
-        showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
-        return;
-    }
-
-    const loader = document.getElementById('global-loader');
-    if(loader) loader.classList.remove('hidden');
     
-    const insertToEditor = (url) => {
-            if (currentEditorMode === 'html') {
-                const editor = document.getElementById('editorContentHtml');
-                editor.focus();
-                if (lastSelectionRange) {
-                    const sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(lastSelectionRange);
-                }
-                document.execCommand('insertHTML', false, `<img src="${url}"><p><br></p>`);
-            } else {
-                const textarea = document.getElementById('editorContentMarkdown');
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const text = textarea.value;
-                const newText = text.substring(0, start) + `\n![이미지](${url})\n` + text.substring(end);
-                textarea.value = newText;
-                textarea.focus();
-                updateMarkdownPreview();
-            }
-    };
+    updateMarkdownPreview();
+    saveTempPost();
+}
 
+async function insertImage(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    
     try {
-        const publicUrl = await uploadImage(file);
-        if (publicUrl) {
-            insertToEditor(publicUrl);
+        if (typeof showGlobalLoader === 'function') showGlobalLoader(true);
+        
+        let imageUrl;
+        if (typeof window.uploadImage === 'function') {
+             try {
+                 imageUrl = await window.uploadImage(file);
+             } catch(e) {
+                 console.error("Upload failed, using local URL", e);
+                 imageUrl = URL.createObjectURL(file);
+             }
         } else {
-            const reader = new FileReader();
-            reader.onload = function(e) { insertToEditor(e.target.result); };
-            reader.readAsDataURL(file);
+             imageUrl = URL.createObjectURL(file);
         }
-    } catch(e) {
-        const reader = new FileReader();
-        reader.onload = function(e) { insertToEditor(e.target.result); };
-        reader.readAsDataURL(file);
+
+        if(!imageUrl) {
+            throw new Error("이미지 URL 생성 실패");
+        }
+
+        if (isMarkdownMode) {
+            const textarea = document.getElementById('editorContentMarkdown');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const newText = text.substring(0, start) + `\n![이미지](${imageUrl})\n` + text.substring(end);
+            textarea.value = newText;
+            updateMarkdownPreview();
+        } else {
+            const imgHtml = `<img src="${imageUrl}" style="max-width:100%; margin: 10px 0;">`;
+            window.insertHtmlAtCursor(imgHtml);
+        }
+        
+        saveTempPost();
+    } catch (error) {
+        if (typeof openAlert === 'function') openAlert('업로드 실패', '이미지 업로드 중 오류가 발생했습니다.');
+        console.error(error);
     } finally {
-        if(loader) loader.classList.add('hidden');
+        if (typeof showGlobalLoader === 'function') showGlobalLoader(false);
+        input.value = ''; 
     }
 }
 
-export async function processCommentImages(files, currentCommentImages, renderCallback) {
-    if(!files || files.length === 0) return;
+function saveTempPost() {
+    const title = document.getElementById('inputTitle').value;
+    const name = document.getElementById('inputName') ? document.getElementById('inputName').value : '';
+    const htmlContent = document.getElementById('editorContentHtml').innerHTML;
+    const mdContent = document.getElementById('editorContentMarkdown').value;
+    
+    if (!title && !name && !htmlContent && !mdContent && typeof editingPostId === 'undefined') return;
 
-    const loader = document.getElementById('global-loader');
-    if(loader) loader.classList.remove('hidden');
+    const tempData = {
+        title,
+        name,
+        htmlContent,
+        mdContent,
+        isMarkdown: isMarkdownMode,
+        postId: (typeof editingPostId !== 'undefined' ? editingPostId : null),
+        boardType: (typeof currentBoardType !== 'undefined' ? currentBoardType : null),
+        timestamp: new Date().getTime()
+    };
+    
+    localStorage.setItem('tempPost', JSON.stringify(tempData));
+}
+
+function loadTempPost() {
+    const saved = localStorage.getItem('tempPost');
+    if (!saved) return;
 
     try {
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            
-            if (!file.type.match('image.*')) {
-                showAlert("이미지 파일(JPG, PNG, GIF 등)만 업로드 가능합니다.");
-                continue; 
-            }
-
-            try {
-                const publicUrl = await uploadImage(file);
-                if(publicUrl) {
-                    currentCommentImages.push(publicUrl);
-                } else { throw new Error('No DB client'); }
-            } catch(err) { 
-                await new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        currentCommentImages.push(e.target.result);
-                        resolve();
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
+        const data = JSON.parse(saved);
+        const ONE_DAY = 24 * 60 * 60 * 1000;
+        if (new Date().getTime() - data.timestamp > ONE_DAY) {
+            localStorage.removeItem('tempPost');
+            return;
         }
-    } finally {
-        if (renderCallback) renderCallback();
-        if(loader) loader.classList.add('hidden');
+
+        const currentEditId = (typeof editingPostId !== 'undefined' ? editingPostId : null);
+        
+        if (data.postId) {
+            if (typeof window.editingPostId !== 'undefined') window.editingPostId = data.postId;
+            if (typeof window.currentBoardType !== 'undefined' && data.boardType) window.currentBoardType = data.boardType;
+            if (typeof window.isWriting !== 'undefined') window.isWriting = true;
+
+            const header = document.getElementById('write-header');
+            if(header) header.innerText = "글 수정하기 (임시 저장 복구됨)";
+            
+            const nameInp = document.getElementById('inputName');
+            if(nameInp) {
+                nameInp.value = data.name;
+                nameInp.disabled = true; 
+            }
+            
+            const pwInp = document.getElementById('inputPw');
+            if(pwInp) pwInp.disabled = true;
+
+            restoreEditorContent(data);
+            
+            if (typeof showAlert === 'function') showAlert("작성 중이던 수정 내용을 복구했습니다.");
+        } 
+        else {
+            if (currentEditId) return; 
+            
+            restoreEditorContent(data);
+        }
+
+    } catch (e) {
+        console.error('Auto save load failed', e);
+        localStorage.removeItem('tempPost'); 
     }
 }
 
-export function setupPasteHandlers(postImageCallback, commentImageCallback) {
-    const handlePaste = (e, callback) => {
+function restoreEditorContent(data) {
+    if (data.title && document.getElementById('inputTitle')) document.getElementById('inputTitle').value = data.title;
+    if (!data.postId && data.name && document.getElementById('inputName')) document.getElementById('inputName').value = data.name;
+
+    if (data.htmlContent && document.getElementById('editorContentHtml')) document.getElementById('editorContentHtml').innerHTML = data.htmlContent;
+    if (data.mdContent && document.getElementById('editorContentMarkdown')) {
+        document.getElementById('editorContentMarkdown').value = data.mdContent;
+        updateMarkdownPreview();
+    }
+
+    if (data.isMarkdown) {
+        switchEditorTab('markdown');
+    } else {
+        switchEditorTab('html');
+    }
+}
+
+function clearTempPost() {
+    localStorage.removeItem('tempPost');
+    
+    if(document.getElementById('inputTitle')) document.getElementById('inputTitle').value = '';
+    if(document.getElementById('inputName')) document.getElementById('inputName').value = '';
+    if(document.getElementById('inputPw')) document.getElementById('inputPw').value = '';
+    if(document.getElementById('editorContentHtml')) document.getElementById('editorContentHtml').innerHTML = '';
+    if(document.getElementById('editorContentMarkdown')) document.getElementById('editorContentMarkdown').value = '';
+    if(document.getElementById('markdown-preview')) document.getElementById('markdown-preview').innerHTML = '';
+    
+    switchEditorTab('html');
+    lastRange = null;
+}
+
+function setupPasteHandlers(postCallback, commentCallback) {
+    const htmlEditor = document.getElementById('editorContentHtml');
+    const mdEditor = document.getElementById('editorContentMarkdown');
+    const cmtInput = document.getElementById('cmtContent');
+
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i;
+
+    const handlePaste = (e, callback, isEditor) => {
         const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        const files = [];
+        let files = [];
         let hasImage = false;
 
-        for (const item of items) {
-            if (item.type.indexOf('image') === 0) {
-                files.push(item.getAsFile());
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].kind === 'file' && items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                files.push(blob);
                 hasImage = true;
             }
         }
 
         if (hasImage) {
-            e.preventDefault(); 
-            callback(files);
+            e.preventDefault();
+            if (isEditor && files.length > 0) {
+                callback(files[0]);
+            } else if (!isEditor && files.length > 0) {
+                callback(files);
+            }
+            return;
+        }
+
+        if (isEditor && !isMarkdownMode) { 
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            const match = pastedText.match(youtubeRegex);
+
+            if (match && match[1]) {
+                e.preventDefault(); 
+                const videoId = match[1];
+                const iframeHtml = `<div class="video-container" style="position:relative; width:100%; padding-bottom:56.25%; height:0; overflow:hidden; background:#000; margin:10px 0; border-radius:8px;">
+                    <iframe src="https://www.youtube.com/embed/${videoId}" style="position:absolute; top:0; left:0; width:100%; height:100%; border:0;" frameborder="0" allowfullscreen></iframe>
+                </div><p><br></p>`;
+                
+                window.insertHtmlAtCursor(iframeHtml);
+            }
         }
     };
 
-    const htmlEditor = document.getElementById('editorContentHtml');
-    if(htmlEditor) {
-        htmlEditor.addEventListener('paste', (e) => {
-            handlePaste(e, (files) => {
-                if(files.length > 0 && postImageCallback) postImageCallback(files[0]); 
-            });
-        });
+    if (htmlEditor) {
+        htmlEditor.addEventListener('paste', (e) => handlePaste(e, postCallback, true));
     }
-
-    const mdEditor = document.getElementById('editorContentMarkdown');
-    if(mdEditor) {
-        mdEditor.addEventListener('paste', (e) => {
-             handlePaste(e, (files) => {
-                if(files.length > 0 && postImageCallback) postImageCallback(files[0]);
-            });
-        });
+    if (mdEditor) {
+        mdEditor.addEventListener('paste', (e) => handlePaste(e, postCallback, true));
     }
-
-    const cmtInput = document.getElementById('cmtContent');
-    if(cmtInput) {
-        cmtInput.addEventListener('paste', (e) => {
-             handlePaste(e, (files) => {
-                if (commentImageCallback) commentImageCallback(files); 
-            });
-        });
+    if (cmtInput) {
+        cmtInput.addEventListener('paste', (e) => handlePaste(e, commentCallback, false));
     }
 }
