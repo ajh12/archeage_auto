@@ -479,7 +479,6 @@ if (!window.hasMainJsRun) {
                 editor.focus();
                 const sel = window.getSelection();
                 if(sel.rangeCount > 0) lastEditorRange = sel.getRangeAt(0);
-                
                 setTimeout(updateToolbarState, 0);
             }
         }
@@ -660,6 +659,20 @@ if (!window.hasMainJsRun) {
         
         const spinner = document.getElementById('loading-spinner');
         if(spinner) spinner.classList.remove('hidden');
+        
+        const container = document.getElementById('board-container');
+        if(container) container.innerHTML = '';
+
+        const titles = { notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'} };
+        const tEl = document.getElementById('board-title');
+        const dEl = document.getElementById('board-desc');
+        if(tEl && titles[type]) tEl.innerText = titles[type].t;
+        if(dEl && titles[type]) dEl.innerText = titles[type].d;
+        
+        const toggles = document.getElementById('view-toggles');
+        if(toggles) toggles.classList.toggle('hidden', currentBoardType !== 'error');
+        const writeBtn = document.getElementById('btn-write-board');
+        if(writeBtn) writeBtn.classList.toggle('hidden', currentBoardType === 'notice' && !isAdmin);
         
         const keyword = document.getElementById('boardSearchInput').value.trim();
         
