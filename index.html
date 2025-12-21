@@ -19,16 +19,18 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://www.googletagmanager.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https: blob:; frame-src 'self' https://www.youtube.com https://www.google.com;">
     <title>하포카 해결소</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-100 selection:text-blue-700" oncontextmenu="return false" ondragstart="return false">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-100 selection:text-blue-700" ondragstart="return false">
 
     <div id="snow-container"></div>
 
@@ -125,7 +127,6 @@
                 <button onclick="confirmNavigation('free'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">💬 자유대화방</button>
                 <button onclick="confirmNavigation('list'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">🛠️ 오류해결소</button>
                 <button id="btn-admin-dash-m" onclick="confirmNavigation('admin'); toggleMobileMenu()" class="hidden block w-full text-left px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50">📊 관리자 대시보드</button>
-                
                 
                 <button onclick="openCategoryModal(); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-bold text-white bg-blue-600 mt-4">✍️ 글쓰기</button>
                 <button id="mobileAdminBadge" onclick="adminLogout()" class="hidden w-full text-left px-4 py-3 rounded-xl font-bold text-slate-800 bg-slate-200 mt-2">
@@ -308,8 +309,10 @@
                 <div><h2 id="board-title" class="text-3xl font-bold text-slate-900">게시판</h2><p id="board-desc" class="text-slate-500 mt-2">설명</p></div>
                 <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                     <div class="relative w-full md:w-64">
-                        <input type="text" id="boardSearchInput" onkeyup="if(event.key==='Enter') renderBoard()" class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition" placeholder="이 게시판 내 검색...">
-                        <i class="fa-solid fa-filter absolute left-3 top-3 text-slate-400"></i>
+                        <input type="text" id="boardSearchInput" onkeyup="if(event.key==='Enter') searchBoard()" class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition bg-white shadow-sm" placeholder="이 게시판 내 검색...">
+                        <button onclick="searchBoard()" class="absolute right-2 top-1.5 p-1.5 text-slate-400 hover:text-blue-600 outline-none transition rounded-full hover:bg-slate-100">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
                     </div>
                     <div id="view-toggles" class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex hidden">
                         <button onclick="toggleViewMode('grid')" id="btn-grid" class="p-2 px-3 rounded-lg text-sm font-bold bg-slate-100 text-slate-800 transition"><i class="fa-solid fa-grip mr-1"></i></button>
@@ -498,10 +501,10 @@
         </div>
     </main>
 
-    <div id="categoryModal" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeCategoryModal()"></div>
+    <div id="categoryModal" class="fixed inset-0 z-[100] hidden" onclick="closeCategoryModal()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-modal">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-modal" onclick="event.stopPropagation()">
                 <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
                 <h3 class="text-xl font-bold text-center mb-6 text-slate-800">어디에 글을 쓰시겠습니까?</h3>
                 <div class="space-y-4">
@@ -522,10 +525,10 @@
         </div>
     </div>
     
-    <div id="adminModal" class="fixed inset-0 z-[100] hidden">
-        <div class="absolute inset-0 bg-white/80 backdrop-blur-md" onclick="closeAdminModal()"></div>
+    <div id="adminModal" class="fixed inset-0 z-[100] hidden" onclick="closeAdminModal()">
+        <div class="absolute inset-0 bg-white/80 backdrop-blur-md"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-modal">
+            <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-modal" onclick="event.stopPropagation()">
                 <h3 class="text-lg font-bold text-slate-900 mb-4">관리자 접속</h3>
                 <input type="email" id="adminEmail" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2 outline-none focus:border-red-500" placeholder="이메일" autocomplete="off">
                 <input type="password" id="adminPw" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 outline-none focus:border-red-500 font-mono" placeholder="비밀번호" onkeyup="if(event.key==='Enter') tryAdminLogin()" autocomplete="off">
@@ -534,10 +537,10 @@
         </div>
     </div>
 
-    <div id="passwordModal" class="fixed inset-0 z-[110] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closePasswordModal()"></div>
+    <div id="passwordModal" class="fixed inset-0 z-[110] hidden" onclick="closePasswordModal()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
                 <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
                     <i class="fa-solid fa-lock text-xl"></i>
                 </div>
@@ -552,29 +555,29 @@
         </div>
     </div>
 
-    <div id="alertModal" class="fixed inset-0 z-[120] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeAlert()"></div>
+    <div id="alertModal" class="fixed inset-0 z-[120] hidden" onclick="closeAlert()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
                 <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
                     <i class="fa-solid fa-circle-info text-xl"></i>
                 </div>
                 <h3 class="font-bold text-lg mb-2 text-slate-800" id="alertTitle">알림</h3>
-                <p class="text-sm text-slate-500 mb-6" id="alertMessage">내용</p>
+                <p class="text-sm text-slate-500 mb-6 whitespace-pre-line" id="alertMessage">내용</p>
                 <button id="alertOkBtn" onclick="closeAlert()" class="w-full py-3 rounded-xl bg-blue-600 font-bold text-white hover:bg-blue-500 transition shadow-lg shadow-blue-500/30">확인</button>
             </div>
         </div>
     </div>
 
-    <div id="confirmModal" class="fixed inset-0 z-[120] hidden">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeConfirm()"></div>
+    <div id="confirmModal" class="fixed inset-0 z-[120] hidden" onclick="closeConfirm()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
                  <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
                     <i class="fa-solid fa-triangle-exclamation text-xl"></i>
                 </div>
                 <h3 class="font-bold text-lg mb-2 text-slate-800" id="confirmTitle">확인</h3>
-                <p class="text-sm text-slate-500 mb-6" id="confirmMessage">정말 진행하시겠습니까?</p>
+                <p class="text-sm text-slate-500 mb-6 whitespace-pre-line" id="confirmMessage">정말 진행하시겠습니까?</p>
                 <div class="flex gap-3">
                     <button onclick="closeConfirm()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition">취소</button>
                     <button id="btn-confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 font-bold text-white hover:bg-red-500 transition shadow-lg shadow-red-500/30">삭제</button>
@@ -597,6 +600,21 @@
         <button onclick="openAdminLogin()" class="absolute bottom-4 left-4 text-slate-100 hover:text-slate-300 transition"><i class="fa-solid fa-lock text-xs"></i></button>
     </footer>
 
-    <script src="script.js"></script>
+    <script>
+        window.addEventListener('beforeunload', function (e) {
+            var viewWrite = document.getElementById('view-write');
+            if (viewWrite && !viewWrite.classList.contains('hidden')) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+    <script src="config.js"></script>
+    <script src="utils.js"></script>
+    <script src="api.js"></script>
+    <script src="editor.js"></script>
+    <script src="ui.js"></script>
+    <script src="admin.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
