@@ -389,6 +389,13 @@ if (!window.hasMainJsRun) {
         const mdPreview = document.getElementById('markdown-preview');
         if(mdPreview) mdPreview.innerHTML='';
         
+        const tabHtml = document.getElementById('tab-html');
+        if(tabHtml) {
+            tabHtml.disabled = false;
+            tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+            tabHtml.title = "";
+        }
+
         lastEditorRange = null;
 
         window.switchEditorTab('html');
@@ -1220,17 +1227,47 @@ if (!window.hasMainJsRun) {
         currentBoardType = post.type;
         document.getElementById('write-header').innerText = "글 수정하기";
         document.getElementById('inputTitle').value = post.title;
-        currentEditorMode = 'html';
-        document.getElementById('editorContentHtml').innerHTML = post.content;
-        const mdArea = document.getElementById('editorContentMarkdown');
-        if(mdArea) mdArea.value = post.content; 
+
         document.getElementById('inputName').value = post.author;
         document.getElementById('inputName').disabled = true;
         document.getElementById('inputPw').disabled = true;
         
         if(isAdmin) document.getElementById('checkPinned').checked = post.is_pinned || false;
+
+        const htmlEditor = document.getElementById('editorContentHtml');
+        const mdEditor = document.getElementById('editorContentMarkdown');
+        const tabHtml = document.getElementById('tab-html'); 
+
+        const hasHtmlTags = /<\/?(div|p|h[1-6]|ul|ol|li|blockquote|pre|table)[^>]*>/i.test(post.content);
+        const hasMarkdownSyntax = /!\[.*?\]\(.*?\)|(\*\*|__)(.*?)\1|(\*|_)(.*?)\3|(^|\n)#{1,6}\s/i.test(post.content);
         
-        window.switchEditorTab('html');
+        if (!hasHtmlTags && (hasMarkdownSyntax || !post.content.trim().startsWith('<'))) {
+            currentEditorMode = 'markdown';
+            if(mdEditor) mdEditor.value = post.content;
+            if(htmlEditor) htmlEditor.innerHTML = '';
+            
+            if (tabHtml) {
+                tabHtml.disabled = true;
+                tabHtml.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                tabHtml.title = "마크다운 형식으로 작성된 글은 HTML 편집 모드로 전환할 수 없습니다.";
+            }
+
+            window.switchEditorTab('markdown');
+            if(typeof updateMarkdownPreview === 'function') updateMarkdownPreview();
+        } else {
+            currentEditorMode = 'html';
+            if(htmlEditor) htmlEditor.innerHTML = post.content;
+            if(mdEditor) mdEditor.value = '';
+            
+            if (tabHtml) {
+                tabHtml.disabled = false;
+                tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                tabHtml.title = "";
+            }
+
+            window.switchEditorTab('html');
+        }
+
         window.router('write', isAdmin);
     }
 
