@@ -136,6 +136,8 @@ function switchEditorTab(mode) {
     const editorContentHtml = document.getElementById('editorContentHtml');
     const markdownContainer = document.getElementById('markdown-container');
 
+    if (tabHtml && tabHtml.disabled && mode === 'html') return;
+
     syncEditorContent(mode);
 
     if (mode === 'html') {
@@ -391,6 +393,13 @@ function restoreEditorContent(data) {
         updateMarkdownPreview();
     }
 
+    const tabHtml = document.getElementById('tab-html');
+    if (tabHtml) {
+        tabHtml.disabled = false;
+        tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+        tabHtml.title = "";
+    }
+
     if (data.isMarkdown) {
         switchEditorTab('markdown');
     } else {
@@ -408,6 +417,13 @@ function clearTempPost() {
     if(document.getElementById('editorContentMarkdown')) document.getElementById('editorContentMarkdown').value = '';
     if(document.getElementById('markdown-preview')) document.getElementById('markdown-preview').innerHTML = '';
     
+    const tabHtml = document.getElementById('tab-html');
+    if (tabHtml) {
+        tabHtml.disabled = false;
+        tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+        tabHtml.title = "";
+    }
+
     switchEditorTab('html');
     lastRange = null;
 }
