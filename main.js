@@ -1488,11 +1488,21 @@ if (!window.hasMainJsRun) {
         tempDiv.innerHTML = cmt.content;
         
         const uniqueImages = new Set();
-        tempDiv.querySelectorAll('img').forEach(img => {
-            if (!uniqueImages.has(img.src)) {
-                uniqueImages.add(img.src);
-            }
-        });
+        
+        const container = tempDiv.querySelector('.comment-img-container');
+        if (container) {
+            container.querySelectorAll('img').forEach(img => {
+                if (!uniqueImages.has(img.src)) {
+                    uniqueImages.add(img.src);
+                }
+            });
+        } else {
+            tempDiv.querySelectorAll('img').forEach(img => {
+                if (!uniqueImages.has(img.src)) {
+                    uniqueImages.add(img.src);
+                }
+            });
+        }
         currentCommentImages = Array.from(uniqueImages);
 
         tempDiv.querySelectorAll('.comment-img-container').forEach(el => el.remove());
