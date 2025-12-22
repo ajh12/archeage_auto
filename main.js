@@ -3,6 +3,7 @@ var pendingTarget = null;
 var pendingTargetId = null;
 
 var lastEditorRange = null;
+var isSubmitting = false;
 
 if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
@@ -1029,12 +1030,18 @@ if (!window.hasMainJsRun) {
     }
 
     async function submitComment() {
+        if(isSubmitting) return; 
+        isSubmitting = true;
+
         const dbClient = getDbClient();
         let name = document.getElementById('cmtName').value.trim();
         let contentText = document.getElementById('cmtContent').value; 
         let pw = document.getElementById('cmtPw').value.trim();
 
-        if(!contentText.trim() && currentCommentImages.length === 0) return showAlert("내용을 입력하세요.");
+        if(!contentText.trim() && currentCommentImages.length === 0) {
+            isSubmitting = false;
+            return showAlert("내용을 입력하세요.");
+        }
 
         if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY) {
             try {
@@ -1046,10 +1053,14 @@ if (!window.hasMainJsRun) {
                     });
                 });
 
-                if (!token) return showAlert("캡차 토큰 생성에 실패했습니다.");
+                if (!token) {
+                    isSubmitting = false;
+                    return showAlert("캡차 토큰 생성에 실패했습니다.");
+                }
 
                 const isVerified = await verifyCaptcha(token);
                 if (!isVerified) {
+                    isSubmitting = false;
                     return showAlert(
                         "보안 검증(봇 탐지)에 실패했습니다.\n\n" +
                         "1. 현재 '시크릿 모드'를 사용 중이라면 해제해주세요.\n" +
@@ -1058,11 +1069,15 @@ if (!window.hasMainJsRun) {
                 }
             } catch (e) {
                 console.error("Captcha error:", e);
+                isSubmitting = false;
                 return showAlert("캡차 인증 중 오류가 발생했습니다.");
             }
         }
 
-        if (isBanned) return showAlert("차단된 사용자는 댓글을 쓸 수 없습니다.");
+        if (isBanned) {
+            isSubmitting = false;
+            return showAlert("차단된 사용자는 댓글을 쓸 수 없습니다.");
+        }
 
         let imageHtml = '';
         if(currentCommentImages.length > 0) {
@@ -1078,21 +1093,24 @@ if (!window.hasMainJsRun) {
 
         if(editingCommentId && dbClient) {
             const { error } = await dbClient.from('comments').update({ content: finalContent }).eq('id', editingCommentId);
-            if(error) showAlert("수정 실패");
-            else {
+            if(error) {
+                isSubmitting = false;
+                showAlert("수정 실패");
+            } else {
                 const post = posts.find(p => p.id == currentPostId);
                 const cmtIndex = post.comments.findIndex(c => c.id == editingCommentId);
                 if(cmtIndex !== -1) post.comments[cmtIndex].content = finalContent;
                 renderComments(post.comments, 'comment-list', isAdmin);
                 cancelCommentEdit();
+                isSubmitting = false;
             }
             return;
         }
 
         if(isAdmin) { name = "하포카"; pw = ""; }
         else {
-            if(!name) return showAlert("닉네임 입력");
-            if(!pw) return showAlert("비번 입력");
+            if(!name) { isSubmitting = false; return showAlert("닉네임 입력"); }
+            if(!pw) { isSubmitting = false; return showAlert("비번 입력"); }
         }
 
         let finalPw = pw;
@@ -1119,7 +1137,10 @@ if (!window.hasMainJsRun) {
             renderCommentImagePreview();
             cancelReply(); 
         } catch (e) { showAlert("실패: " + e.message); } 
-        finally { document.getElementById('global-loader').classList.add('hidden'); }
+        finally { 
+            document.getElementById('global-loader').classList.add('hidden'); 
+            isSubmitting = false;
+        }
     }
 
     function renderCommentImagePreview() {
@@ -1397,18 +1418,21 @@ if (!window.hasMainJsRun) {
         document.getElementById('cmtPw').classList.add('hidden'); 
         let tempDiv = document.createElement('div');
         tempDiv.innerHTML = cmt.content;
+        
         currentCommentImages = [];
         tempDiv.querySelectorAll('img').forEach(img => currentCommentImages.push(img.src));
-        
-        let htmlContent = cmt.content.replace(/<!-- parent_id:.*? -->/g, '');
-        tempDiv.innerHTML = htmlContent;
+
+        tempDiv.querySelectorAll('.comment-img-container').forEach(el => el.remove());
         tempDiv.querySelectorAll('img').forEach(img => img.remove());
+        
+        let htmlContent = tempDiv.innerHTML.replace(/<!-- parent_id:.*? -->/g, '');
+        tempDiv.innerHTML = htmlContent;
         let textOnly = tempDiv.innerHTML.replace(/<br\s*\/?>/gi, "\n").trim();
-        if(textOnly.includes('<')) {
-            let textParser = document.createElement('div');
-            textParser.innerHTML = textOnly;
-            textOnly = textParser.innerText;
-        }
+        textOnly = textOnly.replace(/<[^>]*>/g, ''); 
+
+        var txt = document.createElement("textarea");
+        txt.innerHTML = textOnly;
+        textOnly = txt.value;
 
         document.getElementById('cmtContent').value = textOnly;
         document.getElementById('btn-submit-cmt').innerText = "수정완료";
