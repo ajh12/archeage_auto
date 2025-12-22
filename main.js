@@ -250,7 +250,9 @@ if (!window.hasMainJsRun) {
         }
         
         if (uiRouter && typeof uiRouter === 'function') {
-            uiRouter(page, isAdmin);
+            let uiPage = page;
+            if (page === 'test') uiPage = 'list'; 
+            uiRouter(uiPage, isAdmin);
         }
         
         if (page !== 'write' && page !== 'detail') {
@@ -393,7 +395,7 @@ if (!window.hasMainJsRun) {
         let headerText = "";
         if (type === 'notice') headerText = "📢 공지사항 작성";
         else if (type === 'free') headerText = "💬 자유대화방 글쓰기";
-        else if (type === 'test') headerText = "🧪 관리자 테스트 글쓰기";
+        else if (type === 'test') headerText = "🧪 관리자 테스트 글쓰기"; 
         else headerText = "🛠️ 오류 질문 작성";
         
         if(header) header.innerText = headerText;
@@ -706,7 +708,7 @@ if (!window.hasMainJsRun) {
             notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, 
             free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, 
             error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'},
-            test: {t:'🧪 테스트 게시판', d:'관리자 전용 테스트 공간'} 
+            test: {t:'🧪 테스트 게시판', d:'관리자 전용 테스트 공간'}
         };
         const tEl = document.getElementById('board-title');
         const dEl = document.getElementById('board-desc');
