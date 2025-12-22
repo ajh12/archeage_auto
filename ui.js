@@ -509,6 +509,22 @@ window.buildCommentTree = function(comments) {
     return roots;
 };
 
+window.toggleCommentContent = function(btn) {
+    var container = btn.parentElement;
+    var shortDiv = container.querySelector('.comment-content-short');
+    var fullDiv = container.querySelector('.comment-content-full');
+
+    if (shortDiv.classList.contains('hidden')) {
+        shortDiv.classList.remove('hidden');
+        fullDiv.classList.add('hidden');
+        btn.innerText = '...더보기';
+    } else {
+        shortDiv.classList.add('hidden');
+        fullDiv.classList.remove('hidden');
+        btn.innerText = '접기';
+    }
+};
+
 window.renderCommentNode = function(node, depth, listElement, isAdmin) {
     var safeDepth = Math.min(depth, 3);
     
@@ -534,15 +550,16 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
     }
 
     var content = node.displayContent;
-    var isLongContent = content.length > 300;
-    var shortContent = isLongContent ? content.substring(0, 300) + '...' : content;
+    var textOnly = content.replace(/<[^>]*>/g, '').trim(); 
+    var isLongContent = textOnly.length > 300; 
+    var shortContent = textOnly.substring(0, 300) + '...';
     
     var contentHtml = '';
     if (isLongContent) {
         contentHtml = 
             '<div class="comment-content-short text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
             '<div class="comment-content-full hidden text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
-            '<button class="text-blue-500 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="this.previousElementSibling.classList.remove(\'hidden\'); this.previousElementSibling.previousElementSibling.classList.add(\'hidden\'); this.remove();">...더보기</button>';
+            '<button class="text-blue-500 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="window.toggleCommentContent(this)">...더보기</button>';
     } else {
         contentHtml = '<div class="text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
     }
