@@ -3,7 +3,7 @@ var pendingTarget = null;
 var pendingTargetId = null;
 
 var lastEditorRange = null;
-var isSubmitting = false;
+var isSubmitting = false; 
 
 if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
@@ -263,7 +263,7 @@ if (!window.hasMainJsRun) {
             switchAdminTab(currentAdminTab);
         }
         
-        if(['notice', 'free', 'list', 'error'].includes(page)) {
+        if(['notice', 'free', 'list', 'error', 'test'].includes(page)) {
             const boardInput = document.getElementById('boardSearchInput');
             if(boardInput) boardInput.value = '';
 
@@ -336,6 +336,33 @@ if (!window.hasMainJsRun) {
             modal.classList.remove('hidden');
             const noticeBtn = document.getElementById('btn-write-notice');
             if(noticeBtn) noticeBtn.classList.toggle('hidden', !isAdmin);
+            
+            if (isAdmin) {
+                if (!document.getElementById('btn-write-test')) {
+                    const testBtn = noticeBtn.cloneNode(true);
+                    testBtn.id = 'btn-write-test';
+                    testBtn.innerHTML = '<div class="text-3xl mb-2">🧪</div><div class="font-bold">테스트 글쓰기</div>';
+                    testBtn.onclick = () => window.writePost('test');
+                    noticeBtn.parentNode.insertBefore(testBtn, noticeBtn.nextSibling);
+                }
+                
+                if (!document.getElementById('btn-view-test')) {
+                    const viewTestBtn = noticeBtn.cloneNode(true);
+                    viewTestBtn.id = 'btn-view-test';
+                    viewTestBtn.className = "flex flex-col items-center justify-center p-6 border-2 border-slate-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition cursor-pointer group";
+                    viewTestBtn.innerHTML = '<div class="text-3xl mb-2">👁️</div><div class="font-bold">테스트 게시판 보기</div>';
+                    viewTestBtn.onclick = () => {
+                        window.closeCategoryModal();
+                        window.router('test');
+                    };
+                    noticeBtn.parentNode.appendChild(viewTestBtn);
+                }
+            } else {
+                const testBtn = document.getElementById('btn-write-test');
+                const viewTestBtn = document.getElementById('btn-view-test');
+                if(testBtn) testBtn.remove();
+                if(viewTestBtn) viewTestBtn.remove();
+            }
         }
     };
 
@@ -363,7 +390,13 @@ if (!window.hasMainJsRun) {
         currentBoardType = type;
 
         const header = document.getElementById('write-header');
-        if(header) header.innerText = type === 'notice' ? "📢 공지사항 작성" : (type === 'free' ? "💬 자유대화방 글쓰기" : "🛠️ 오류 질문 작성");
+        let headerText = "";
+        if (type === 'notice') headerText = "📢 공지사항 작성";
+        else if (type === 'free') headerText = "💬 자유대화방 글쓰기";
+        else if (type === 'test') headerText = "🧪 관리자 테스트 글쓰기";
+        else headerText = "🛠️ 오류 질문 작성";
+        
+        if(header) header.innerText = headerText;
         
         document.getElementById('inputTitle').value=''; 
         const nameInput = document.getElementById('inputName');
@@ -648,6 +681,11 @@ if (!window.hasMainJsRun) {
     }
 
     async function fetchPosts(type, page = 1) {
+        if (type === 'test' && !isAdmin) {
+             showAlert("접근 권한이 없습니다.");
+             return window.router('home');
+        }
+
         const dbClient = getDbClient();
         if (!dbClient) {
             loadLocalPostsData();
@@ -664,7 +702,12 @@ if (!window.hasMainJsRun) {
         const container = document.getElementById('board-container');
         if(container) container.innerHTML = '';
 
-        const titles = { notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'} };
+        const titles = { 
+            notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, 
+            free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, 
+            error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'},
+            test: {t:'🧪 테스트 게시판', d:'관리자 전용 테스트 공간'} 
+        };
         const tEl = document.getElementById('board-title');
         const dEl = document.getElementById('board-desc');
         if(tEl && titles[currentBoardType]) tEl.innerText = titles[currentBoardType].t;
@@ -712,7 +755,12 @@ if (!window.hasMainJsRun) {
         const container = document.getElementById('board-container');
         if(!container) return;
 
-        const titles = { notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'} };
+        const titles = { 
+            notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, 
+            free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, 
+            error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'},
+            test: {t:'🧪 테스트 게시판', d:'관리자 전용 테스트 공간'}
+        };
         
         const tEl = document.getElementById('board-title');
         const dEl = document.getElementById('board-desc');
@@ -845,8 +893,8 @@ if (!window.hasMainJsRun) {
         }
         noResult.classList.add('hidden');
 
-        const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지'};
-        const typeColor = {'free':'bg-slate-100 text-slate-600', 'error':'bg-red-100 text-red-600', 'notice':'bg-blue-100 text-blue-600'};
+        const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지', 'test':'테스트'};
+        const typeColor = {'free':'bg-slate-100 text-slate-600', 'error':'bg-red-100 text-red-600', 'notice':'bg-blue-100 text-blue-600', 'test':'bg-purple-100 text-purple-600'};
 
         results.forEach(post => {
             let highlightedTitle = escapeHtml(post.title);
