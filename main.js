@@ -614,6 +614,7 @@ if (!window.hasMainJsRun) {
     window.cancelReply = cancelReply;
     window.uploadCommentImage = (input) => {
         if(input.files && input.files.length > 0) {
+            currentCommentImages = []; 
             processCommentImages(input.files, currentCommentImages, renderCommentImagePreview);
             input.value = '';
         }
