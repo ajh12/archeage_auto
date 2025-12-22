@@ -1137,7 +1137,18 @@ if (!window.hasMainJsRun) {
         }
         
         let parentTag = replyingToCommentId ? `<!-- parent_id:${replyingToCommentId} -->` : '';
-        let finalContent = contentText.replace(/\n/g, '<br>') + imageHtml + parentTag;
+        
+        let safeText = contentText.replace(/&/g, "&amp;")
+                                  .replace(/</g, "&lt;")
+                                  .replace(/>/g, "&gt;")
+                                  .replace(/"/g, "&quot;")
+                                  .replace(/'/g, "&#039;");
+
+        safeText = safeText.replace(/(https?:\/\/[^\s]+)/g, function(url) {
+            return `<a href="javascript:void(0)" onclick="event.preventDefault(); window.confirmLink('${url}'); return false;" class="text-blue-600 hover:underline" title="${url}">${url}</a>`;
+        });
+
+        let finalContent = safeText.replace(/\n/g, '<br>') + imageHtml + parentTag;
 
         if(!isAdmin) saveNickname(name);
 
