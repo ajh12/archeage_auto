@@ -341,7 +341,7 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
         if(container.className.includes('grid')) {
             var imgHtml = displayImg ? 
                 '<div class="h-40 bg-slate-100 overflow-hidden group relative"><img src="' + displayImg + '" class="w-full h-full object-cover transition duration-500 group-hover:scale-105"></div>' : 
-                '<div class="h-40 bg-slate-50 flex items-center justify-center text-slate-300 text-3xl"><i class="fa-solid ' + (currentBoardType==='free'?'fa-comments':'fa-terminal') + '"></i></div>';
+                '<div class="h-40 bg-slate-50 flex items-center justify-center text-slate-300 text-3xl"></div>';
                 
             if (currentBoardType === 'free') imgHtml = ''; 
 
