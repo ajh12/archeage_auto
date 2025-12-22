@@ -1462,7 +1462,14 @@ if (!window.hasMainJsRun) {
     }
 
     function loadCommentForEdit(cmt) {
+        cancelReply();
         editingCommentId = cmt.id;
+        
+        const match = cmt.content.match(/<!-- parent_id:(.*?) -->/);
+        if (match && match[1]) {
+            replyingToCommentId = match[1];
+        }
+
         document.getElementById('cmtName').value = cmt.author;
         document.getElementById('cmtName').disabled = true;
         document.getElementById('cmtPw').classList.add('hidden'); 
@@ -1492,6 +1499,7 @@ if (!window.hasMainJsRun) {
 
     function cancelCommentEdit() {
         editingCommentId = null;
+        cancelReply(); 
         document.getElementById('cmtName').value = isAdmin ? "하포카" : loadSavedNickname();
         document.getElementById('cmtName').disabled = isAdmin;
         if(!isAdmin) document.getElementById('cmtPw').classList.remove('hidden');
