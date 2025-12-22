@@ -1487,8 +1487,13 @@ if (!window.hasMainJsRun) {
         let tempDiv = document.createElement('div');
         tempDiv.innerHTML = cmt.content;
         
-        currentCommentImages = [];
-        tempDiv.querySelectorAll('img').forEach(img => currentCommentImages.push(img.src));
+        const uniqueImages = new Set();
+        tempDiv.querySelectorAll('img').forEach(img => {
+            if (!uniqueImages.has(img.src)) {
+                uniqueImages.add(img.src);
+            }
+        });
+        currentCommentImages = Array.from(uniqueImages);
 
         tempDiv.querySelectorAll('.comment-img-container').forEach(el => el.remove());
         tempDiv.querySelectorAll('img').forEach(img => img.remove());
