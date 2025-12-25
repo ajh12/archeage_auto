@@ -2,7 +2,6 @@ var pendingActionType = null;
 var pendingTarget = null;
 var pendingTargetId = null;
 
-var lastEditorRange = null;
 var isSubmitting = false; 
 
 if (!window.hasMainJsRun) {
@@ -11,38 +10,8 @@ if (!window.hasMainJsRun) {
     window.isWriting = false; 
 
     const uiRouter = (typeof window.router === 'function') ? window.router : null;
-    const originalSwitchEditorTab = (typeof window.switchEditorTab === 'function') ? window.switchEditorTab : null;
 
     document.addEventListener('DOMContentLoaded', () => {
-        const htmlEditor = document.getElementById('editorContentHtml');
-        if (htmlEditor) {
-            try { document.execCommand('styleWithCSS', false, true); } catch(e) {}
-
-            const saveSelection = () => {
-                const sel = window.getSelection();
-                if (sel.rangeCount > 0) {
-                    const range = sel.getRangeAt(0);
-                    if (htmlEditor.contains(range.commonAncestorContainer)) {
-                        lastEditorRange = range;
-                    }
-                }
-                setTimeout(updateToolbarState, 0);
-            };
-
-            htmlEditor.addEventListener('keyup', saveSelection);
-            htmlEditor.addEventListener('mouseup', saveSelection);
-            htmlEditor.addEventListener('mouseleave', saveSelection); 
-            htmlEditor.addEventListener('input', saveSelection);
-            htmlEditor.addEventListener('focus', saveSelection);
-        }
-
-        const toolbarButtons = document.querySelectorAll('#toolbar-html button, #btn-font-size');
-        toolbarButtons.forEach(btn => {
-            btn.addEventListener('mousedown', (e) => {
-                e.preventDefault(); 
-            });
-        });
-
         window.addEventListener('beforeunload', (e) => {
             if (window.isWriting) {
                 e.preventDefault();
@@ -130,54 +99,6 @@ if (!window.hasMainJsRun) {
             }
         }
     });
-
-    function restoreSelection() {
-        const htmlEditor = document.getElementById('editorContentHtml');
-        if (lastEditorRange && htmlEditor) {
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(lastEditorRange);
-            htmlEditor.focus(); 
-        } else if (htmlEditor) {
-            htmlEditor.focus();
-        }
-    }
-
-    function updateToolbarState() {
-        if (currentEditorMode !== 'html') return;
-
-        const commands = [
-            'bold', 'italic', 'underline', 'strikeThrough', 
-            'justifyLeft', 'justifyCenter', 'justifyRight'
-        ];
-
-        commands.forEach(cmd => {
-            const btn = document.querySelector(`#toolbar-html button[onclick*="'${cmd}'"]`);
-            if (btn) {
-                let isActive = false;
-                try {
-                    isActive = document.queryCommandState(cmd);
-                } catch(e) {}
-                
-                if (isActive) {
-                    btn.classList.add('text-blue-600', 'bg-blue-50');
-                    btn.classList.remove('text-slate-600', 'hover:bg-slate-200');
-                } else {
-                    btn.classList.remove('text-blue-600', 'bg-blue-50');
-                    btn.classList.add('text-slate-600', 'hover:bg-slate-200');
-                }
-            }
-        });
-        
-        try {
-            const size = document.queryCommandValue('fontSize');
-            const sizeLabelMap = { '1': '작게', '3': '본문', '5': '제목', '7': '특대' };
-            const sizeTxt = document.getElementById('txt-font-size');
-            if (sizeTxt) {
-                sizeTxt.innerText = sizeLabelMap[size + ""] || '본문';
-            }
-        } catch(e) {}
-    }
 
     window.onload = () => { 
         const loader = document.getElementById('global-loader');
@@ -432,12 +353,12 @@ if (!window.hasMainJsRun) {
             tabHtml.title = "";
         }
 
-        lastEditorRange = null;
-
         window.switchEditorTab('html');
         window.router('write');
         
-        setTimeout(updateToolbarState, 100);
+        if (typeof updateToolbarState === 'function') {
+            setTimeout(updateToolbarState, 100);
+        }
     }
 
     window.searchBoard = function() {
@@ -500,52 +421,6 @@ if (!window.hasMainJsRun) {
         if(i2) i2.value = keyword;
 
         performSearch(keyword, searchType);
-    };
-
-    window.execCmd = (command, value) => {
-        if(typeof execCmd === 'function' && execCmd !== window.execCmd) {
-            execCmd(command, value);
-        } else {
-            restoreSelection();
-            
-            document.execCommand(command, false, value);
-            
-            const editor = document.getElementById('editorContentHtml');
-            if(editor) {
-                editor.focus();
-                const sel = window.getSelection();
-                if(sel.rangeCount > 0) lastEditorRange = sel.getRangeAt(0);
-                setTimeout(updateToolbarState, 0);
-            }
-        }
-    };
-
-    window.switchEditorTab = (tab) => {
-        if (originalSwitchEditorTab && typeof originalSwitchEditorTab === 'function') {
-            originalSwitchEditorTab(tab);
-        } else {
-            currentEditorMode = tab;
-        }
-    };
-
-    window.insertImage = (inp) => { if(inp.files[0]) processPostImage(inp.files[0], currentEditorMode); inp.value=''; };
-    
-    window.toggleFontSizeDropdown = () => {
-        const menu = document.getElementById('menu-font-size');
-        if(menu) menu.classList.toggle('hidden');
-    };
-    
-    window.applyFontSize = (size, label) => {
-        restoreSelection();
-        window.execCmd('fontSize', size);
-        
-        const txt = document.getElementById('txt-font-size');
-        if(txt) txt.innerText = label;
-        document.getElementById('menu-font-size').classList.add('hidden');
-        
-        const sel = window.getSelection();
-        if(sel.rangeCount > 0) lastEditorRange = sel.getRangeAt(0);
-        setTimeout(updateToolbarState, 0); 
     };
 
     window.submitPost = submitPost;
@@ -1538,18 +1413,6 @@ if (!window.hasMainJsRun) {
         renderCommentImagePreview();
     }
 
-    function insertHtmlToEditorLocal(html) {
-        if (typeof window.insertHtmlAtCursor === 'function') {
-            window.insertHtmlAtCursor(html);
-        } else {
-            const editor = document.getElementById('editorContentHtml');
-            if (editor) {
-                editor.focus();
-                document.execCommand('insertHTML', false, html);
-            }
-        }
-    }
-
     async function processPostImage(file, mode) {
         try {
             if(typeof showGlobalLoader === 'function') showGlobalLoader(true);
@@ -1589,7 +1452,10 @@ if (!window.hasMainJsRun) {
             }
     
             if (mode === 'html') {
-                 insertHtmlToEditorLocal(`<img src="${imageUrl}" style="max-width:100%; margin: 10px 0; display: block;"><p><br></p>`);
+                 if (typeof window.insertHtmlAtCursor === 'function') {
+                    const imgHtml = `<img src="${imageUrl}" style="max-width:100%; margin: 10px 0; display: block;"><p><br></p>`;
+                    window.insertHtmlAtCursor(imgHtml);
+                 }
             } else {
                  const mdText = document.getElementById('editorContentMarkdown');
                  const start = mdText.selectionStart;
