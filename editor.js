@@ -11,17 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
         marked.use({ renderer });
     }
 
-    
     if (typeof window.router === 'function') {
         const originalRouter = window.router;
         window.router = function(page, pushHistory = true) {
-            
             if (page !== 'write') {
                 clearTempPost();
             }
-
             originalRouter(page, pushHistory);
-
             if (page === 'write' && typeof window.editingPostId !== 'undefined' && window.editingPostId) {
                 setTimeout(() => saveTempPost(), 200);
             }
@@ -36,7 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const autoSaveHandler = () => saveTempPost();
 
     if (htmlEditor) {
-        htmlEditor.addEventListener('input', autoSaveHandler);
+        htmlEditor.addEventListener('input', () => {
+            autoSaveHandler();
+            if (htmlEditor.innerText.trim() === '' && !htmlEditor.innerHTML.includes('<img') && !htmlEditor.innerHTML.includes('<iframe')) {
+                 if (mdEditor) mdEditor.value = '';
+            }
+        });
         
         const saveSelection = () => {
             const sel = window.getSelection();
@@ -46,13 +47,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastRange = range.cloneRange();
                 }
             }
-            updateToolbarState();
+            setTimeout(updateToolbarState, 10);
         };
 
         htmlEditor.addEventListener('keyup', saveSelection);
         htmlEditor.addEventListener('mouseup', saveSelection);
         htmlEditor.addEventListener('click', saveSelection);
         htmlEditor.addEventListener('input', saveSelection);
+        htmlEditor.addEventListener('focus', saveSelection);
     }
 
     if (mdEditor) {
@@ -61,23 +63,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (titleInput) titleInput.addEventListener('input', autoSaveHandler);
     if (nameInput) nameInput.addEventListener('input', autoSaveHandler);
+    
+    document.addEventListener('selectionchange', () => {
+        if (!isMarkdownMode && document.activeElement === htmlEditor) {
+            updateToolbarState();
+        }
+    });
 });
 
 function updateToolbarState() {
-    const commands = ['bold', 'italic', 'underline', 'strikethrough', 'justifyLeft', 'justifyCenter', 'justifyRight'];
+    const commands = [
+        { cmd: 'bold', id: 'btn-bold' },
+        { cmd: 'italic', id: 'btn-italic' },
+        { cmd: 'underline', id: 'btn-underline' },
+        { cmd: 'strikeThrough', id: 'btn-strikethrough' },
+        { cmd: 'justifyLeft', id: 'btn-justifyLeft' },
+        { cmd: 'justifyCenter', id: 'btn-justifyCenter' },
+        { cmd: 'justifyRight', id: 'btn-justifyRight' }
+    ];
     
-    commands.forEach(cmd => {
-        const btnId = 'btn-' + cmd;
-        const btn = document.getElementById(btnId);
+    commands.forEach(item => {
+        const btn = document.getElementById(item.id);
         if (btn) {
-            const state = document.queryCommandState(cmd);
+            let state = false;
+            try {
+                state = document.queryCommandState(item.cmd);
+            } catch(e) {}
+            
             if (state) {
-                btn.classList.add('active', 'bg-blue-100', 'text-blue-600', 'border-blue-200');
+                btn.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.remove('text-slate-500', 'hover:bg-slate-100', 'bg-white', 'border-transparent');
             } else {
-                btn.classList.remove('active', 'bg-blue-100', 'text-blue-600', 'border-blue-200');
+                btn.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                btn.classList.add('text-slate-500', 'hover:bg-slate-100', 'border-transparent');
             }
         }
     });
+
+    try {
+        const size = document.queryCommandValue('fontSize');
+        const txt = document.getElementById('txt-font-size');
+        
+        if (txt) {
+            let label = '보통'; 
+            
+            if (size === '1' || size === '10px' || size === 'x-small') label = '작게';
+            else if (size === '3' || size === '16px' || size === 'medium') label = '보통';
+            else if (size === '5' || size === '24px' || size === 'x-large') label = '크게';
+            else if (size === '7' || size === '48px' || size === 'xxx-large') label = '아주 크게';
+            
+            else if (size === '2' || size === 'small') label = '작게';
+            else if (size === '4' || size === 'large') label = '보통';
+            else if (size === '6' || size === 'xx-large') label = '아주 크게';
+
+            txt.innerText = label;
+        }
+    } catch(e) {}
 }
 
 window.insertHtmlAtCursor = function(html) {
@@ -126,6 +167,7 @@ window.insertHtmlAtCursor = function(html) {
     }
     
     saveTempPost();
+    setTimeout(updateToolbarState, 10);
 };
 
 function switchEditorTab(mode) {
@@ -152,6 +194,8 @@ function switchEditorTab(mode) {
         markdownToolbar.classList.add('hidden');
         editorContentHtml.classList.remove('hidden');
         markdownContainer.classList.add('hidden');
+        
+        setTimeout(updateToolbarState, 50);
     } else {
         isMarkdownMode = true;
         
@@ -181,10 +225,15 @@ function syncEditorContent(targetMode) {
     if (targetMode === 'html') {
         if (mdEditor.value.trim() !== '') {
             htmlEditor.innerHTML = marked.parse(mdEditor.value);
+        } else {
+             htmlEditor.innerHTML = '';
         }
     } else {
         if (htmlEditor.innerText.trim() !== '' || htmlEditor.innerHTML.includes('<img') || htmlEditor.innerHTML.includes('<iframe')) {
             mdEditor.value = htmlToMarkdown(htmlEditor.innerHTML);
+            updateMarkdownPreview();
+        } else {
+            mdEditor.value = '';
             updateMarkdownPreview();
         }
     }
@@ -217,24 +266,43 @@ function htmlToMarkdown(html) {
 function updateMarkdownPreview() {
     const mdText = document.getElementById('editorContentMarkdown').value;
     const preview = document.getElementById('markdown-preview');
+    
+    const scrollTop = preview.scrollTop;
+
     if (typeof DOMPurify !== 'undefined' && typeof marked !== 'undefined') {
-        preview.innerHTML = DOMPurify.sanitize(marked.parse(mdText));
+        const lines = mdText.split('\n');
+        const processedLines = lines.map(line => {
+            if (line.trim() === '') {
+                return '\u00A0';
+            }
+            return line;
+        });
+        const processedText = processedLines.join('\n');
+
+        preview.innerHTML = DOMPurify.sanitize(marked.parse(processedText));
     } else {
         preview.innerText = mdText;
     }
+
+    preview.scrollTop = scrollTop;
 }
 
 function execCmd(command, value = null) {
     const editor = document.getElementById('editorContentHtml');
-    editor.focus();
+    if(editor) editor.focus();
+    
     if(lastRange) {
         const sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(lastRange);
     }
+    
     document.execCommand(command, false, value);
-    editor.focus();
-    updateToolbarState();
+    
+    if(editor) {
+        editor.focus();
+        setTimeout(updateToolbarState, 10);
+    }
     saveTempPost(); 
 }
 
@@ -245,8 +313,10 @@ function toggleFontSizeDropdown() {
 
 function applyFontSize(size, label) {
     execCmd('fontSize', size);
+    
     const txt = document.getElementById('txt-font-size');
     if(txt) txt.innerText = label;
+    
     document.getElementById('menu-font-size').classList.add('hidden');
 }
 
