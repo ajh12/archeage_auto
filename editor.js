@@ -69,6 +69,20 @@ document.addEventListener('DOMContentLoaded', () => {
             updateToolbarState();
         }
     });
+
+    const toolbarButtons = [
+        'btn-bold', 'btn-italic', 'btn-underline', 'btn-strikethrough',
+        'btn-justifyLeft', 'btn-justifyCenter', 'btn-justifyRight'
+    ];
+
+    toolbarButtons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+        }
+    });
 });
 
 function updateToolbarState() {
@@ -105,7 +119,7 @@ function updateToolbarState() {
         const txt = document.getElementById('txt-font-size');
         
         if (txt) {
-            let label = '보통'; 
+            let label = '보통';
             
             if (size === '1' || size === '10px' || size === 'x-small') label = '작게';
             else if (size === '3' || size === '16px' || size === 'medium') label = '보통';
@@ -289,18 +303,21 @@ function updateMarkdownPreview() {
 
 function execCmd(command, value = null) {
     const editor = document.getElementById('editorContentHtml');
-    if(editor) editor.focus();
     
-    if(lastRange) {
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(lastRange);
+    if(editor && document.activeElement !== editor) {
+        editor.focus();
+        if(lastRange) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(lastRange);
+        }
     }
     
     document.execCommand(command, false, value);
     
     if(editor) {
         editor.focus();
+        // 툴바 상태 즉시 업데이트
         setTimeout(updateToolbarState, 10);
     }
     saveTempPost(); 
@@ -314,6 +331,7 @@ function toggleFontSizeDropdown() {
 function applyFontSize(size, label) {
     execCmd('fontSize', size);
     
+    // UI 강제 업데이트
     const txt = document.getElementById('txt-font-size');
     if(txt) txt.innerText = label;
     
