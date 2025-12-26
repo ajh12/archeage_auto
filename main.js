@@ -348,6 +348,8 @@ if (!window.hasMainJsRun) {
             nameInput.value = "하포카";
             nameInput.disabled = true;
             pwContainer.classList.add('hidden');
+            const adminOpts = document.getElementById('admin-write-options');
+            if(adminOpts) adminOpts.classList.remove('hidden');
         }
 
         const editorHtml = document.getElementById('editorContentHtml');
