@@ -902,7 +902,11 @@ if (!window.hasMainJsRun) {
         try {
             if (editingPostId) {
                 if(!dbClient) return showAlert("오프라인 상태에서는 수정할 수 없습니다.");
-                const { error } = await dbClient.rpc('update_post_secure', {
+
+                let updateSuccess = false;
+                let errorMsg = "";
+
+                const { error: rpcError } = await dbClient.rpc('update_post_secure', {
                     p_id: editingPostId,
                     p_title: postData.title,
                     p_content: postData.content,
@@ -910,14 +914,32 @@ if (!window.hasMainJsRun) {
                     p_is_pinned: isAdmin ? isPinned : false,
                     p_game_version: postData.game_version
                 });
+
+                if (!rpcError) {
+                    updateSuccess = true;
+                } else {
+                    errorMsg = rpcError.message;
+                    console.warn("RPC update failed, trying direct update:", rpcError);
+                }
                 
-                await dbClient.from('posts').update({ 
+                const { error: updateError } = await dbClient.from('posts').update({ 
                     title: postData.title, 
                     content: postData.content, 
                     image_url: postData.image, 
                     is_pinned: isAdmin ? isPinned : false,
                     game_version: postData.game_version
                 }).eq('id', editingPostId);
+
+                if (!updateError) {
+                    updateSuccess = true;
+                } else {
+                    if (!updateSuccess) errorMsg = updateError.message;
+                    console.warn("Direct update failed:", updateError);
+                }
+
+                if (!updateSuccess) {
+                    throw new Error("수정 실패: " + errorMsg);
+                }
 
                 showAlert("수정되었습니다.");
                 window.isWriting = false; 
