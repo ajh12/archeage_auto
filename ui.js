@@ -350,21 +350,21 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
 
         var versionBadge = '';
         if (post.game_version) {
-            var vClass = 'bg-slate-100 text-slate-600';
+            var vClass = 'bg-slate-100 text-slate-600 border-slate-200';
             var vText = post.game_version;
             
             if (vText === '1.2') {
-                vClass = 'bg-blue-100 text-blue-600';
-                vText = '1.2 버전';
+                vClass = 'bg-blue-50 text-blue-600 border-blue-200';
+                vText = '1.2 Ver';
             } else if (vText === '5.0') {
-                vClass = 'bg-purple-100 text-purple-600';
-                vText = '5.0 버전';
+                vClass = 'bg-purple-50 text-purple-600 border-purple-200';
+                vText = '5.0 Ver';
             } else if (vText === 'common') {
-                vClass = 'bg-green-100 text-green-600';
+                vClass = 'bg-green-50 text-green-600 border-green-200';
                 vText = '공통';
             }
             
-            versionBadge = '<span class="inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded font-bold mr-1.5 align-middle ' + vClass + '">' + vText + '</span>';
+            versionBadge = '<span class="inline-block text-[11px] px-2 py-0.5 rounded border font-bold mr-1.5 align-middle ' + vClass + '">' + vText + '</span>';
         }
 
         var html = '';
@@ -375,7 +375,7 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
                 
             if (currentBoardType === 'free' || currentBoardType === 'test') imgHtml = ''; 
 
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl border shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer ' + pinnedClass + '">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><h3 class="font-bold text-slate-800 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition">' + versionBadge + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-50 flex flex-col"><div class="flex justify-between text-xs text-slate-500"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl border shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer ' + pinnedClass + '">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-slate-800 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-50 flex flex-col"><div class="flex justify-between text-xs text-slate-500"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         } else {
             var iconClass = currentBoardType==='notice' ? 'fa-bullhorn text-blue-500' : 'fa-file-lines';
             html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' border rounded-xl shadow-sm hover:border-blue-400 transition cursor-pointer group ' + pinnedClass + '">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold text-slate-800 truncate group-hover:text-blue-600 transition">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
@@ -427,20 +427,20 @@ window.renderPostDetail = function(post, isAdmin) {
 
     var versionBadge = '';
     if (post.game_version) {
-        var vClass = 'bg-slate-100 text-slate-600';
+        var vClass = 'bg-slate-100 text-slate-600 border-slate-200';
         var vText = post.game_version;
         
         if (vText === '1.2') {
-            vClass = 'bg-blue-100 text-blue-600';
-            vText = '1.2 버전';
+            vClass = 'bg-blue-50 text-blue-600 border-blue-200';
+            vText = '1.2 Ver';
         } else if (vText === '5.0') {
-            vClass = 'bg-purple-100 text-purple-600';
-            vText = '5.0 버전';
+            vClass = 'bg-purple-50 text-purple-600 border-purple-200';
+            vText = '5.0 Ver';
         } else if (vText === 'common') {
-            vClass = 'bg-green-100 text-green-600';
+            vClass = 'bg-green-50 text-green-600 border-green-200';
             vText = '공통';
         }
-        versionBadge = '<span class="inline-flex items-center justify-center text-sm px-2 py-1 rounded-lg font-bold mr-2 align-middle ' + vClass + '">' + vText + '</span>';
+        versionBadge = '<span class="inline-block text-sm px-2 py-1 rounded border font-bold mr-2 align-middle ' + vClass + '">' + vText + '</span>';
     }
 
     var titleEl = document.getElementById('detail-title');
@@ -465,6 +465,8 @@ window.renderPostDetail = function(post, isAdmin) {
     var contentDiv = document.getElementById('detail-content');
     if(contentDiv) {
         var safeContent = post.content || ''; 
+        safeContent = safeContent.replace(/<!-- version:.*? -->/g, '');
+
         if(typeof preprocessMarkdown === 'function') safeContent = preprocessMarkdown(safeContent);
         
         var parsed = marked.parse(safeContent);
