@@ -323,7 +323,7 @@ if (!window.hasMainJsRun) {
         
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            if (type === 'free') {
+            if (type === 'free' || type === 'test') {
                 versionContainer.classList.remove('hidden');
                 document.getElementById('selectedGameVersion').value = "";
                 document.getElementById('txt-version-select').innerText = "선택안함";
@@ -823,7 +823,7 @@ if (!window.hasMainJsRun) {
         let pw = document.getElementById('inputPw').value.trim(); 
         
         let selectedVersion = null;
-        if (currentBoardType === 'free') {
+        if (currentBoardType === 'free' || currentBoardType === 'test') {
             selectedVersion = document.getElementById('selectedGameVersion').value;
             if (!selectedVersion) return showAlert('버전을 선택해주세요 (1.2 / 5.0 / 공통).');
         }
@@ -1236,7 +1236,7 @@ if (!window.hasMainJsRun) {
 
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            if (currentBoardType === 'free') {
+            if (currentBoardType === 'free' || currentBoardType === 'test') {
                 versionContainer.classList.remove('hidden');
                 
                 const selectVal = post.game_version || "";
