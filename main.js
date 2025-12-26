@@ -906,35 +906,58 @@ if (!window.hasMainJsRun) {
                 let updateSuccess = false;
                 let errorMsg = "";
 
-                const { error: rpcError } = await dbClient.rpc('update_post_secure', {
+                const updatePayload = {
+                    title: postData.title,
+                    content: postData.content,
+                    image_url: postData.image,
+                    is_pinned: isAdmin ? isPinned : false
+                };
+
+                let rpcPayload = {
                     p_id: editingPostId,
                     p_title: postData.title,
                     p_content: postData.content,
                     p_image_url: postData.image,
                     p_is_pinned: isAdmin ? isPinned : false,
                     p_game_version: postData.game_version
-                });
+                };
+
+                // RPC 시도
+                const { error: rpcError } = await dbClient.rpc('update_post_secure', rpcPayload);
 
                 if (!rpcError) {
                     updateSuccess = true;
                 } else {
-                    errorMsg = rpcError.message;
-                    console.warn("RPC update failed, trying direct update:", rpcError);
+                    console.warn("RPC update failed:", rpcError);
+                    if (rpcError.message.includes("Could not find the 'game_version' column")) {
+                         delete rpcPayload.p_game_version;
+                         const { error: retryRpcError } = await dbClient.rpc('update_post_secure', rpcPayload);
+                         if (!retryRpcError) updateSuccess = true;
+                         else errorMsg = retryRpcError.message;
+                    } else {
+                        errorMsg = rpcError.message;
+                    }
                 }
                 
-                const { error: updateError } = await dbClient.from('posts').update({ 
-                    title: postData.title, 
-                    content: postData.content, 
-                    image_url: postData.image, 
-                    is_pinned: isAdmin ? isPinned : false,
-                    game_version: postData.game_version
-                }).eq('id', editingPostId);
+                if (!updateSuccess) {
+                    if (postData.game_version) {
+                        updatePayload.game_version = postData.game_version;
+                    }
+                    
+                    const { error: updateError } = await dbClient.from('posts').update(updatePayload).eq('id', editingPostId);
 
-                if (!updateError) {
-                    updateSuccess = true;
-                } else {
-                    if (!updateSuccess) errorMsg = updateError.message;
-                    console.warn("Direct update failed:", updateError);
+                    if (!updateError) {
+                        updateSuccess = true;
+                    } else {
+                        if (updateError.message.includes("Could not find the 'game_version' column")) {
+                            delete updatePayload.game_version;
+                            const { error: retryError } = await dbClient.from('posts').update(updatePayload).eq('id', editingPostId);
+                            if (!retryError) updateSuccess = true;
+                            else errorMsg = retryError.message;
+                        } else {
+                            errorMsg = updateError.message;
+                        }
+                    }
                 }
 
                 if (!updateSuccess) {
@@ -1005,7 +1028,11 @@ if (!window.hasMainJsRun) {
                 }
 
                 if (targetId) {
-                    await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', targetId);
+                    try {
+                        await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', targetId);
+                    } catch (verError) {
+                        console.warn("Version update failed (schema error?):", verError);
+                    }
                 }
             }
             
