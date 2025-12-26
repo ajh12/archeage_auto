@@ -323,7 +323,8 @@ if (!window.hasMainJsRun) {
         
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            if (type === 'free' || type === 'test') {
+            // 자유대화방에서는 버전을 선택하지 않도록 변경
+            if (type === 'test') {
                 versionContainer.classList.remove('hidden');
                 document.getElementById('selectedGameVersion').value = "";
                 document.getElementById('txt-version-select').innerText = "선택안함";
@@ -823,7 +824,8 @@ if (!window.hasMainJsRun) {
         let pw = document.getElementById('inputPw').value.trim(); 
         
         let selectedVersion = null;
-        if (currentBoardType === 'free' || currentBoardType === 'test') {
+        // 자유게시판(free)은 버전 선택을 숨겼으므로, 테스트(test)일 때만 필수 검사
+        if (currentBoardType === 'test') {
             selectedVersion = document.getElementById('selectedGameVersion').value;
             if (!selectedVersion) return showAlert('버전을 선택해주세요 (1.2 / 5.0 / 공통).');
         }
@@ -968,18 +970,9 @@ if (!window.hasMainJsRun) {
             
             if (error) throw error;
 
-            if (selectedVersion) {
-                const { data: recentPost } = await dbClient.from('posts')
-                    .select('id')
-                    .eq('author', postData.author)
-                    .eq('title', postData.title)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
-                
-                if (recentPost) {
-                    await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', recentPost.id);
-                }
+            if (selectedVersion && newPostId) {
+                // newPostId를 사용하여 정확하게 업데이트
+                await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', newPostId);
             }
             
             showAlert('등록되었습니다.');
@@ -1236,7 +1229,8 @@ if (!window.hasMainJsRun) {
 
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            if (currentBoardType === 'free' || currentBoardType === 'test') {
+            // 자유게시판(free)은 버전 선택을 숨기고 테스트(test)에서만 보이도록 수정
+            if (currentBoardType === 'test') {
                 versionContainer.classList.remove('hidden');
                 
                 const selectVal = post.game_version || "";
