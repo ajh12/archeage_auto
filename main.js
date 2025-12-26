@@ -698,9 +698,9 @@ if (!window.hasMainJsRun) {
             } catch (e) {}
         }
         
-        let post = directData || posts.find(p => p.id == id);
+        let post = directData; 
 
-        if (!post && dbClient) {
+        if (dbClient) {
             try {
                 const { data, dataError } = await dbClient.from('posts').select('*, comments(*)').eq('id', id).single();
                 if (data) {
@@ -717,6 +717,10 @@ if (!window.hasMainJsRun) {
                     };
                 }
             } catch (e) {}
+        }
+
+        if (!post) {
+             post = posts.find(p => p.id == id);
         }
 
         if (!post) return window.router('list');
