@@ -355,10 +355,10 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
             
             if (vText === '1.2') {
                 vClass = 'bg-blue-50 text-blue-600 border-blue-200';
-                vText = '1.2 Ver';
+                vText = '1.2';
             } else if (vText === '5.0') {
                 vClass = 'bg-purple-50 text-purple-600 border-purple-200';
-                vText = '5.0 Ver';
+                vText = '5.0';
             } else if (vText === 'common') {
                 vClass = 'bg-green-50 text-green-600 border-green-200';
                 vText = '공통';
@@ -432,10 +432,10 @@ window.renderPostDetail = function(post, isAdmin) {
         
         if (vText === '1.2') {
             vClass = 'bg-blue-50 text-blue-600 border-blue-200';
-            vText = '1.2 Ver';
+            vText = '1.2';
         } else if (vText === '5.0') {
             vClass = 'bg-purple-50 text-purple-600 border-purple-200';
-            vText = '5.0 Ver';
+            vText = '5.0';
         } else if (vText === 'common') {
             vClass = 'bg-green-50 text-green-600 border-green-200';
             vText = '공통';
@@ -465,7 +465,7 @@ window.renderPostDetail = function(post, isAdmin) {
     var contentDiv = document.getElementById('detail-content');
     if(contentDiv) {
         var safeContent = post.content || ''; 
-        safeContent = safeContent.replace(/<!-- version:.*? -->/g, '');
+        safeContent = safeContent.replace(/<!-- version:.*? -->/g, ''); 
 
         if(typeof preprocessMarkdown === 'function') safeContent = preprocessMarkdown(safeContent);
         
