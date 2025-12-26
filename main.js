@@ -321,6 +321,17 @@ if (!window.hasMainJsRun) {
         
         if(header) header.innerText = headerText;
         
+        const versionContainer = document.getElementById('version-select-container');
+        if (versionContainer) {
+            if (type === 'free') {
+                versionContainer.classList.remove('hidden');
+                document.getElementById('selectedGameVersion').value = "";
+                document.getElementById('txt-version-select').innerText = "선택안함";
+            } else {
+                versionContainer.classList.add('hidden');
+            }
+        }
+
         document.getElementById('inputTitle').value=''; 
         const nameInput = document.getElementById('inputName');
         nameInput.value = loadSavedNickname();
@@ -811,6 +822,12 @@ if (!window.hasMainJsRun) {
         let n = document.getElementById('inputName').value.trim(); 
         let pw = document.getElementById('inputPw').value.trim(); 
         
+        let selectedVersion = null;
+        if (currentBoardType === 'free') {
+            selectedVersion = document.getElementById('selectedGameVersion').value;
+            if (!selectedVersion) return showAlert('버전을 선택해주세요 (1.2 / 5.0 / 공통).');
+        }
+
         let finalContent = "";
         let textCheck = "";
 
@@ -870,7 +887,7 @@ if (!window.hasMainJsRun) {
             if(!n) n = '익명';
         }
 
-        let postData = { title: t, content: finalContent, image: thumb };
+        let postData = { title: t, content: finalContent, image: thumb, game_version: selectedVersion };
         if(!editingPostId) {
             postData.author = n;
             postData.password = pw;
@@ -890,9 +907,18 @@ if (!window.hasMainJsRun) {
                     p_title: postData.title,
                     p_content: postData.content,
                     p_image_url: postData.image,
-                    p_is_pinned: isAdmin ? isPinned : false
+                    p_is_pinned: isAdmin ? isPinned : false,
+                    p_game_version: postData.game_version
                 });
-                if (error) throw error;
+                
+                await dbClient.from('posts').update({ 
+                    title: postData.title, 
+                    content: postData.content, 
+                    image_url: postData.image, 
+                    is_pinned: isAdmin ? isPinned : false,
+                    game_version: postData.game_version
+                }).eq('id', editingPostId);
+
                 showAlert("수정되었습니다.");
                 window.isWriting = false; 
                 
@@ -904,7 +930,8 @@ if (!window.hasMainJsRun) {
                     content: postData.content,
                     image_url: postData.image,
                     image: postData.image,
-                    is_pinned: isAdmin ? isPinned : (oldPost.is_pinned || false)
+                    is_pinned: isAdmin ? isPinned : (oldPost.is_pinned || false),
+                    game_version: postData.game_version
                 };
 
                 const idx = posts.findIndex(p => p.id == editingPostId);
@@ -929,7 +956,7 @@ if (!window.hasMainJsRun) {
             let finalPw = postData.password;
             if(!isAdmin && finalPw) finalPw = await sha256(finalPw);
 
-            const { error } = await dbClient.rpc('create_post_secure', {
+            const { data: newPostId, error } = await dbClient.rpc('create_post_secure', {
                 p_title: postData.title,
                 p_content: postData.content,
                 p_author: postData.author,
@@ -938,7 +965,22 @@ if (!window.hasMainJsRun) {
                 p_image_url: postData.image,
                 p_is_pinned: isAdmin ? isPinned : false
             });
+            
             if (error) throw error;
+
+            if (selectedVersion) {
+                const { data: recentPost } = await dbClient.from('posts')
+                    .select('id')
+                    .eq('author', postData.author)
+                    .eq('title', postData.title)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+                
+                if (recentPost) {
+                    await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', recentPost.id);
+                }
+            }
             
             showAlert('등록되었습니다.');
             window.isWriting = false; 
@@ -1192,6 +1234,26 @@ if (!window.hasMainJsRun) {
         
         if(isAdmin) document.getElementById('checkPinned').checked = post.is_pinned || false;
 
+        const versionContainer = document.getElementById('version-select-container');
+        if (versionContainer) {
+            if (currentBoardType === 'free') {
+                versionContainer.classList.remove('hidden');
+                
+                const selectVal = post.game_version || "";
+                document.getElementById('selectedGameVersion').value = selectVal;
+                
+                let label = "선택안함";
+                if(selectVal === '1.2') label = "1.2 버전";
+                else if(selectVal === '5.0') label = "5.0 버전";
+                else if(selectVal === 'common') label = "공통";
+                
+                document.getElementById('txt-version-select').innerText = label;
+                
+            } else {
+                versionContainer.classList.add('hidden');
+            }
+        }
+
         const htmlEditor = document.getElementById('editorContentHtml');
         const mdEditor = document.getElementById('editorContentMarkdown');
         const tabHtml = document.getElementById('tab-html'); 
@@ -1423,7 +1485,7 @@ if (!window.hasMainJsRun) {
                     const editor = document.getElementById('editorContentHtml');
                     if (editor) currentImageCount = editor.getElementsByTagName('img').length;
                 } else {
-                    const md = document.getElementById('editorContentMarkdown').value;
+                    const md = document.getElementById('editorContentMarkdown');
                     const matches = md.match(/!\[.*?\]\(.*?\)/g);
                     currentImageCount = matches ? matches.length : 0;
                 }
