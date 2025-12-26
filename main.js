@@ -323,7 +323,7 @@ if (!window.hasMainJsRun) {
         
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            if (type === 'test') {
+            if (type === 'test' || type === 'free') {
                 versionContainer.classList.remove('hidden');
                 document.getElementById('selectedGameVersion').value = "";
                 document.getElementById('txt-version-select').innerText = "선택안함";
@@ -625,13 +625,20 @@ if (!window.hasMainJsRun) {
             renderBoard();
         } else {
             totalCount = count || 0;
-            posts = data.map(p => ({
-                ...p,
-                date: new Date(p.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                comments: (p.comments || []).filter(c => !c.deleted_at),
-                reports: p.reports || 0,
-                reported_by: Array.isArray(p.reported_by) ? p.reported_by : [] 
-            }));
+            posts = data.map(p => {
+                let version = null;
+                const match = p.content ? p.content.match(/<!-- version:(.*?) -->/) : null;
+                if(match && match[1]) version = match[1];
+
+                return {
+                    ...p,
+                    game_version: version, 
+                    date: new Date(p.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                    comments: (p.comments || []).filter(c => !c.deleted_at),
+                    reports: p.reports || 0,
+                    reported_by: Array.isArray(p.reported_by) ? p.reported_by : [] 
+                };
+            });
             saveLocalPosts(posts);
             renderBoard();
             renderPagination('pagination-container', totalCount, PAGE_SIZE, currentPage, (p) => fetchPosts(currentBoardType, p)); 
@@ -697,8 +704,13 @@ if (!window.hasMainJsRun) {
             try {
                 const { data, dataError } = await dbClient.from('posts').select('*, comments(*)').eq('id', id).single();
                 if (data) {
+                    let version = null;
+                    const match = data.content ? data.content.match(/<!-- version:(.*?) -->/) : null;
+                    if(match && match[1]) version = match[1];
+
                     post = {
                         ...data,
+                        game_version: version,
                         date: new Date(data.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
                         comments: (data.comments || []).filter(c => !c.deleted_at),
                         reported_by: Array.isArray(data.reported_by) ? data.reported_by : []
@@ -796,7 +808,8 @@ if (!window.hasMainJsRun) {
             
             let snippet = "";
             const div = document.createElement('div');
-            div.innerHTML = marked.parse(post.content); 
+            let cleanContent = post.content ? post.content.replace(/<!-- version:.*? -->/g, '') : "";
+            div.innerHTML = marked.parse(cleanContent); 
             let textContent = div.textContent || div.innerText || "";
             
             snippet = textContent.substring(0, 100) + "...";
@@ -823,7 +836,7 @@ if (!window.hasMainJsRun) {
         let pw = document.getElementById('inputPw').value.trim(); 
         
         let selectedVersion = null;
-        if (currentBoardType === 'test') {
+        if (currentBoardType === 'test' || currentBoardType === 'free') {
             selectedVersion = document.getElementById('selectedGameVersion').value;
             if (!selectedVersion) return showAlert('버전을 선택해주세요 (1.2 / 5.0 / 공통).');
         }
@@ -851,6 +864,11 @@ if (!window.hasMainJsRun) {
 
         if(!t) return showAlert('제목을 입력하세요.'); 
         if(!textCheck && !thumb) return showAlert('내용을 입력하세요.');
+
+        finalContent = finalContent.replace(/<!-- version:.*? -->/g, '');
+        if (selectedVersion) {
+            finalContent = `<!-- version:${selectedVersion} -->` + finalContent;
+        }
 
         if (!isAdmin && typeof grecaptcha !== 'undefined' && RECAPTCHA_SITE_KEY) {
             try {
@@ -887,7 +905,7 @@ if (!window.hasMainJsRun) {
             if(!n) n = '익명';
         }
 
-        let postData = { title: t, content: finalContent, image: thumb, game_version: selectedVersion };
+        let postData = { title: t, content: finalContent, image: thumb };
         if(!editingPostId) {
             postData.author = n;
             postData.password = pw;
@@ -906,57 +924,33 @@ if (!window.hasMainJsRun) {
                 let updateSuccess = false;
                 let errorMsg = "";
 
-                const updatePayload = {
-                    title: postData.title,
-                    content: postData.content,
-                    image_url: postData.image,
-                    is_pinned: isAdmin ? isPinned : false
-                };
-
-                let rpcPayload = {
+                const { error: rpcError } = await dbClient.rpc('update_post_secure', {
                     p_id: editingPostId,
                     p_title: postData.title,
                     p_content: postData.content,
                     p_image_url: postData.image,
-                    p_is_pinned: isAdmin ? isPinned : false,
-                    p_game_version: postData.game_version
-                };
-
-                // RPC 시도
-                const { error: rpcError } = await dbClient.rpc('update_post_secure', rpcPayload);
+                    p_is_pinned: isAdmin ? isPinned : false
+                });
 
                 if (!rpcError) {
                     updateSuccess = true;
                 } else {
-                    console.warn("RPC update failed:", rpcError);
-                    if (rpcError.message.includes("Could not find the 'game_version' column")) {
-                         delete rpcPayload.p_game_version;
-                         const { error: retryRpcError } = await dbClient.rpc('update_post_secure', rpcPayload);
-                         if (!retryRpcError) updateSuccess = true;
-                         else errorMsg = retryRpcError.message;
-                    } else {
-                        errorMsg = rpcError.message;
-                    }
+                    errorMsg = rpcError.message;
+                    console.warn("RPC update failed, trying direct update:", rpcError);
                 }
                 
                 if (!updateSuccess) {
-                    if (postData.game_version) {
-                        updatePayload.game_version = postData.game_version;
-                    }
-                    
-                    const { error: updateError } = await dbClient.from('posts').update(updatePayload).eq('id', editingPostId);
+                    const { error: updateError } = await dbClient.from('posts').update({ 
+                        title: postData.title, 
+                        content: postData.content, 
+                        image_url: postData.image, 
+                        is_pinned: isAdmin ? isPinned : false
+                    }).eq('id', editingPostId);
 
                     if (!updateError) {
                         updateSuccess = true;
                     } else {
-                        if (updateError.message.includes("Could not find the 'game_version' column")) {
-                            delete updatePayload.game_version;
-                            const { error: retryError } = await dbClient.from('posts').update(updatePayload).eq('id', editingPostId);
-                            if (!retryError) updateSuccess = true;
-                            else errorMsg = retryError.message;
-                        } else {
-                            errorMsg = updateError.message;
-                        }
+                        errorMsg = updateError.message;
                     }
                 }
 
@@ -976,7 +970,7 @@ if (!window.hasMainJsRun) {
                     image_url: postData.image,
                     image: postData.image,
                     is_pinned: isAdmin ? isPinned : (oldPost.is_pinned || false),
-                    game_version: postData.game_version
+                    game_version: selectedVersion 
                 };
 
                 const idx = posts.findIndex(p => p.id == editingPostId);
@@ -1012,30 +1006,26 @@ if (!window.hasMainJsRun) {
             });
             
             if (error) throw error;
-
-            if (selectedVersion) {
-                let targetId = newPostId;
-
-                if (!targetId) {
-                    const { data: recentPost } = await dbClient.from('posts')
-                        .select('id')
-                        .eq('author', postData.author)
-                        .eq('title', postData.title)
-                        .order('created_at', { ascending: false })
-                        .limit(1)
-                        .single();
-                    if (recentPost) targetId = recentPost.id;
-                }
-
-                if (targetId) {
-                    try {
-                        await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', targetId);
-                    } catch (verError) {
-                        console.warn("Version update failed (schema error?):", verError);
-                    }
-                }
-            }
             
+            const newPost = {
+                id: newPostId,
+                title: postData.title,
+                content: postData.content,
+                image_url: postData.image,
+                author: postData.author,
+                type: postData.type,
+                created_at: new Date().toISOString(),
+                is_pinned: isAdmin ? isPinned : false,
+                game_version: selectedVersion, 
+                date: new Date().toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                comments: [],
+                reports: 0,
+                views: 0
+            };
+
+            posts.unshift(newPost);
+            saveLocalPosts(posts);
+
             showAlert('등록되었습니다.');
             window.isWriting = false; 
             resetEditor();
@@ -1294,10 +1284,18 @@ if (!window.hasMainJsRun) {
 
             const versionContainer = document.getElementById('version-select-container');
             if (versionContainer) {
-                if (currentBoardType === 'test') {
+                if (currentBoardType === 'test' || currentBoardType === 'free') {
                     versionContainer.classList.remove('hidden');
                     
-                    const selectVal = post.game_version || "";
+                    let selectVal = "";
+                    let cleanContent = post.content || "";
+                    
+                    const match = cleanContent.match(/<!-- version:(.*?) -->/);
+                    if (match && match[1]) {
+                        selectVal = match[1];
+                        cleanContent = cleanContent.replace(/<!-- version:.*? -->/g, ''); 
+                    }
+
                     document.getElementById('selectedGameVersion').value = selectVal;
                     
                     let label = "선택안함";
@@ -1306,6 +1304,8 @@ if (!window.hasMainJsRun) {
                     else if(selectVal === 'common') label = "공통";
                     
                     document.getElementById('txt-version-select').innerText = label;
+                    
+                    post.content = cleanContent;
                     
                 } else {
                     versionContainer.classList.add('hidden');
