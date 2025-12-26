@@ -66,9 +66,11 @@ async function loadVisitorChart() {
     var ctx = document.getElementById('visitorChart');
     if(!ctx) return;
 
-    var res = await dbClient.from('daily_stats').select('*').order('date', { ascending: true }).limit(7);
+    var res = await dbClient.from('daily_stats').select('*').order('date', { ascending: false }).limit(7);
     var stats = res.data;
     if(!stats) return;
+
+    stats.reverse();
 
     if(visitorChartInstance) {
         visitorChartInstance.destroy();
