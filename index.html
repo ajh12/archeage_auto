@@ -419,6 +419,23 @@
                     <input type="checkbox" id="checkPinned" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
                     <label for="checkPinned" class="text-sm font-bold text-slate-700">📌 이 글을 상단에 고정 (강조)</label>
                 </div>
+
+                <div id="version-select-container" class="hidden flex items-center gap-4 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span class="text-sm font-bold text-slate-600">버전 선택:</span>
+                    <div class="relative z-40">
+                        <input type="hidden" id="selectedGameVersion" value="">
+                        <button onclick="toggleVersionDropdown()" id="btn-version-select" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 transition outline-none shadow-sm min-w-[120px] justify-between">
+                            <span id="txt-version-select">선택안함</span>
+                            <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                        </button>
+                        <div id="menu-version-select" class="hidden absolute left-0 top-full mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-modal p-1 origin-top-left">
+                            <button onclick="selectVersion('1.2', '1.2 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">1.2 버전</button>
+                            <button onclick="selectVersion('5.0', '5.0 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition">5.0 버전</button>
+                            <button onclick="selectVersion('common', '공통')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-lg transition">공통</button>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="text" id="inputTitle" maxlength="40" class="w-full text-3xl font-extrabold text-slate-900 placeholder-slate-300 outline-none border-b border-transparent focus:border-blue-200 pb-2" placeholder="제목을 입력하세요" autocomplete="off">
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="flex-1">
