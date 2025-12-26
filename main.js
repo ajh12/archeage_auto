@@ -323,7 +323,6 @@ if (!window.hasMainJsRun) {
         
         const versionContainer = document.getElementById('version-select-container');
         if (versionContainer) {
-            // 자유대화방에서는 버전을 선택하지 않도록 변경
             if (type === 'test') {
                 versionContainer.classList.remove('hidden');
                 document.getElementById('selectedGameVersion').value = "";
@@ -824,7 +823,6 @@ if (!window.hasMainJsRun) {
         let pw = document.getElementById('inputPw').value.trim(); 
         
         let selectedVersion = null;
-        // 자유게시판(free)은 버전 선택을 숨겼으므로, 테스트(test)일 때만 필수 검사
         if (currentBoardType === 'test') {
             selectedVersion = document.getElementById('selectedGameVersion').value;
             if (!selectedVersion) return showAlert('버전을 선택해주세요 (1.2 / 5.0 / 공통).');
@@ -970,9 +968,23 @@ if (!window.hasMainJsRun) {
             
             if (error) throw error;
 
-            if (selectedVersion && newPostId) {
-                // newPostId를 사용하여 정확하게 업데이트
-                await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', newPostId);
+            if (selectedVersion) {
+                let targetId = newPostId;
+
+                if (!targetId) {
+                    const { data: recentPost } = await dbClient.from('posts')
+                        .select('id')
+                        .eq('author', postData.author)
+                        .eq('title', postData.title)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                    if (recentPost) targetId = recentPost.id;
+                }
+
+                if (targetId) {
+                    await dbClient.from('posts').update({ game_version: selectedVersion }).eq('id', targetId);
+                }
             }
             
             showAlert('등록되었습니다.');
@@ -1218,71 +1230,80 @@ if (!window.hasMainJsRun) {
     function goEditMode(post) {
         editingPostId = post.id;
         currentBoardType = post.type;
-        document.getElementById('write-header').innerText = "글 수정하기";
-        document.getElementById('inputTitle').value = post.title;
-
-        document.getElementById('inputName').value = post.author;
-        document.getElementById('inputName').disabled = true;
-        document.getElementById('inputPw').disabled = true;
         
-        if(isAdmin) document.getElementById('checkPinned').checked = post.is_pinned || false;
-
-        const versionContainer = document.getElementById('version-select-container');
-        if (versionContainer) {
-            // 자유게시판(free)은 버전 선택을 숨기고 테스트(test)에서만 보이도록 수정
-            if (currentBoardType === 'test') {
-                versionContainer.classList.remove('hidden');
-                
-                const selectVal = post.game_version || "";
-                document.getElementById('selectedGameVersion').value = selectVal;
-                
-                let label = "선택안함";
-                if(selectVal === '1.2') label = "1.2 버전";
-                else if(selectVal === '5.0') label = "5.0 버전";
-                else if(selectVal === 'common') label = "공통";
-                
-                document.getElementById('txt-version-select').innerText = label;
-                
-            } else {
-                versionContainer.classList.add('hidden');
-            }
-        }
-
-        const htmlEditor = document.getElementById('editorContentHtml');
-        const mdEditor = document.getElementById('editorContentMarkdown');
-        const tabHtml = document.getElementById('tab-html'); 
-
-        const hasHtmlTags = /<\/?(div|p|h[1-6]|ul|ol|li|blockquote|pre|table)[^>]*>/i.test(post.content);
-        const hasMarkdownSyntax = /!\[.*?\]\(.*?\)|(\*\*|__)(.*?)\1|(\*|_)(.*?)\3|(^|\n)#{1,6}\s/i.test(post.content);
-        
-        if (!hasHtmlTags && (hasMarkdownSyntax || !post.content.trim().startsWith('<'))) {
-            currentEditorMode = 'markdown';
-            if(mdEditor) mdEditor.value = post.content;
-            if(htmlEditor) htmlEditor.innerHTML = '';
-            
-            if (tabHtml) {
-                tabHtml.disabled = true;
-                tabHtml.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
-                tabHtml.title = "마크다운 형식으로 작성된 글은 HTML 편집 모드로 전환할 수 없습니다.";
-            }
-
-            window.switchEditorTab('markdown');
-            if(typeof updateMarkdownPreview === 'function') updateMarkdownPreview();
-        } else {
-            currentEditorMode = 'html';
-            if(htmlEditor) htmlEditor.innerHTML = post.content;
-            if(mdEditor) mdEditor.value = '';
-            
-            if (tabHtml) {
-                tabHtml.disabled = false;
-                tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
-                tabHtml.title = "";
-            }
-
-            window.switchEditorTab('html');
-        }
-
         window.router('write', isAdmin);
+
+        setTimeout(() => {
+            document.getElementById('write-header').innerText = "글 수정하기";
+            document.getElementById('inputTitle').value = post.title;
+
+            document.getElementById('inputName').value = post.author;
+            document.getElementById('inputName').disabled = true;
+            document.getElementById('inputPw').disabled = true;
+            
+            if(isAdmin) document.getElementById('checkPinned').checked = post.is_pinned || false;
+
+            const versionContainer = document.getElementById('version-select-container');
+            if (versionContainer) {
+                if (currentBoardType === 'test') {
+                    versionContainer.classList.remove('hidden');
+                    
+                    const selectVal = post.game_version || "";
+                    document.getElementById('selectedGameVersion').value = selectVal;
+                    
+                    let label = "선택안함";
+                    if(selectVal === '1.2') label = "1.2 버전";
+                    else if(selectVal === '5.0') label = "5.0 버전";
+                    else if(selectVal === 'common') label = "공통";
+                    
+                    document.getElementById('txt-version-select').innerText = label;
+                    
+                } else {
+                    versionContainer.classList.add('hidden');
+                }
+            }
+
+            const htmlEditor = document.getElementById('editorContentHtml');
+            const mdEditor = document.getElementById('editorContentMarkdown');
+            const tabHtml = document.getElementById('tab-html'); 
+
+            const hasHtmlTags = /<\/?(div|p|h[1-6]|ul|ol|li|blockquote|pre|table)[^>]*>/i.test(post.content);
+            const hasMarkdownSyntax = /!\[.*?\]\(.*?\)|(\*\*|__)(.*?)\1|(\*|_)(.*?)\3|(^|\n)#{1,6}\s/i.test(post.content);
+            
+            if (!hasHtmlTags && (hasMarkdownSyntax || !post.content.trim().startsWith('<'))) {
+                currentEditorMode = 'markdown';
+                
+                if (tabHtml) {
+                    tabHtml.disabled = true;
+                    tabHtml.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                    tabHtml.title = "마크다운 형식으로 작성된 글은 HTML 편집 모드로 전환할 수 없습니다.";
+                }
+
+                window.switchEditorTab('markdown'); 
+                
+                if(mdEditor) mdEditor.value = post.content; 
+                if(htmlEditor) htmlEditor.innerHTML = '';
+                
+                if(typeof updateMarkdownPreview === 'function') updateMarkdownPreview();
+            } else {
+                currentEditorMode = 'html';
+                
+                if (tabHtml) {
+                    tabHtml.disabled = false;
+                    tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                    tabHtml.title = "";
+                }
+
+                window.switchEditorTab('html'); 
+
+                if(htmlEditor) htmlEditor.innerHTML = post.content;
+                if(mdEditor) mdEditor.value = '';
+            }
+
+            if (typeof saveTempPost === 'function') {
+                saveTempPost();
+            }
+        }, 50);
     }
 
     async function deletePost(id) { 
