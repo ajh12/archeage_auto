@@ -6,7 +6,8 @@ window.PAGE_TITLES = {
     'write': '글쓰기',
     'detail': '게시글',
     'admin': '관리자',
-    'search': '검색 결과'
+    'search': '검색 결과',
+    'test': '테스트 게시판'
 };
 
 window.ENABLE_SNOW = true;
@@ -37,7 +38,7 @@ window.router = function(page, isAdmin) {
         if(footer) footer.classList.remove('hidden');
     }
 
-    if(['notice','free','list'].includes(page)) {
+    if(['notice','free','list','test'].includes(page)) {
         document.getElementById('view-board').classList.remove('hidden');
     } else {
         var target = document.getElementById('view-' + page);
@@ -154,7 +155,7 @@ window.confirmMove = function(targetPage) {
 window.processNavigation = function(target) {
     if (target === 'home') {
         window.router('home');
-    } else if (['notice', 'free', 'list'].includes(target)) {
+    } else if (['notice', 'free', 'list', 'test'].includes(target)) {
         if (typeof currentBoardType !== 'undefined') currentBoardType = target;
         window.router('board'); 
         if (typeof renderBoard === 'function') renderBoard();
@@ -318,7 +319,7 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
     if(currentBoardType === 'error') {
         if(viewMode === 'grid') container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
         else container.className = "flex flex-col gap-3";
-    } else if(currentBoardType === 'free') {
+    } else if(currentBoardType === 'free' || currentBoardType === 'test') {
         container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
     } else {
         container.className = "flex flex-col gap-3";
@@ -372,9 +373,9 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
                 '<div class="h-40 bg-slate-100 overflow-hidden group relative"><img src="' + displayImg + '" class="w-full h-full object-cover transition duration-500 group-hover:scale-105"></div>' : 
                 '<div class="h-40 bg-slate-50 flex items-center justify-center text-slate-300 text-3xl"></div>';
                 
-            if (currentBoardType === 'free') imgHtml = ''; 
+            if (currentBoardType === 'free' || currentBoardType === 'test') imgHtml = ''; 
 
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl border shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer ' + pinnedClass + '">' + pinnedBadge + (currentBoardType!=='free' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><h3 class="font-bold text-slate-800 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition">' + versionBadge + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-50 flex flex-col"><div class="flex justify-between text-xs text-slate-500"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl border shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer ' + pinnedClass + '">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><h3 class="font-bold text-slate-800 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition">' + versionBadge + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-50 flex flex-col"><div class="flex justify-between text-xs text-slate-500"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         } else {
             var iconClass = currentBoardType==='notice' ? 'fa-bullhorn text-blue-500' : 'fa-file-lines';
             html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' border rounded-xl shadow-sm hover:border-blue-400 transition cursor-pointer group ' + pinnedClass + '">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold text-slate-800 truncate group-hover:text-blue-600 transition">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
@@ -424,8 +425,29 @@ window.renderPagination = function(containerId, totalCount, pageSize, currentPag
 window.renderPostDetail = function(post, isAdmin) {
     document.title = '하포카 해결소 | ' + post.title;
 
+    var versionBadge = '';
+    if (post.game_version) {
+        var vClass = 'bg-slate-100 text-slate-600';
+        var vText = post.game_version;
+        
+        if (vText === '1.2') {
+            vClass = 'bg-blue-100 text-blue-600';
+            vText = '1.2 버전';
+        } else if (vText === '5.0') {
+            vClass = 'bg-purple-100 text-purple-600';
+            vText = '5.0 버전';
+        } else if (vText === 'common') {
+            vClass = 'bg-green-100 text-green-600';
+            vText = '공통';
+        }
+        versionBadge = '<span class="inline-flex items-center justify-center text-sm px-2 py-1 rounded-lg font-bold mr-2 align-middle ' + vClass + '">' + vText + '</span>';
+    }
+
     var titleEl = document.getElementById('detail-title');
-    if(titleEl) titleEl.innerText = post.title || '제목 없음';
+    if(titleEl) {
+        var safeTitle = typeof escapeHtml === 'function' ? escapeHtml(post.title) : post.title;
+        titleEl.innerHTML = versionBadge + safeTitle;
+    }
     
     var authorHtml = typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author;
     if(post.author === '하포카' || post.author === 'Admin') {
@@ -468,6 +490,7 @@ window.renderPostDetail = function(post, isAdmin) {
         if (post.type === 'notice') { catName = "공지"; catClass = "bg-blue-100 text-blue-600"; }
         else if (post.type === 'free') { catName = "자유"; catClass = "bg-slate-100 text-slate-600"; }
         else if (post.type === 'error') { catName = "오류질문"; catClass = "bg-red-100 text-red-600"; }
+        else if (post.type === 'test') { catName = "테스트"; catClass = "bg-purple-100 text-purple-600"; }
         badge.innerText = catName;
         badge.className = "text-xs px-2 py-1 rounded font-bold " + catClass;
     }
