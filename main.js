@@ -768,7 +768,7 @@ if (!window.hasMainJsRun) {
         let queryResults = [];
 
         if(dbClient) {
-            let query = dbClient.from('posts').select('*').is('deleted_at', null).order('created_at', {ascending: false});
+            let query = dbClient.from('posts').select('*').is('deleted_at', null).neq('type', 'test').order('created_at', {ascending: false});
             if (searchType === 'nickname') {
                 query = query.ilike('author', `%${keyword}%`);
             } else {
@@ -778,9 +778,9 @@ if (!window.hasMainJsRun) {
             if(!error && data) queryResults = data;
         } else {
             if (searchType === 'nickname') {
-                queryResults = posts.filter(p => p.author.toLowerCase().includes(keyword.toLowerCase()) && !p.deleted_at);
+                queryResults = posts.filter(p => p.author.toLowerCase().includes(keyword.toLowerCase()) && !p.deleted_at && p.type !== 'test');
             } else {
-                queryResults = posts.filter(p => (p.title.toLowerCase().includes(keyword.toLowerCase()) || p.content.toLowerCase().includes(keyword.toLowerCase())) && !p.deleted_at);
+                queryResults = posts.filter(p => (p.title.toLowerCase().includes(keyword.toLowerCase()) || p.content.toLowerCase().includes(keyword.toLowerCase())) && !p.deleted_at && p.type !== 'test');
             }
         }
         
