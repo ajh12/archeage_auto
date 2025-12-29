@@ -483,6 +483,18 @@ window.renderPostDetail = function(post, isAdmin) {
                 img.style.cursor = 'pointer'; 
             }
         }
+
+        var links = contentDiv.querySelectorAll('a');
+        for (var i = 0; i < links.length; i++) {
+            var link = links[i];
+            var href = link.getAttribute('href');
+            if (href && !href.startsWith('javascript:') && !link.onclick) {
+                link.onclick = function(e) {
+                    e.preventDefault();
+                    window.confirmLink(this.href);
+                };
+            }
+        }
     }
 
     var badge = document.getElementById('detail-badge');
@@ -779,9 +791,7 @@ window.renderTopNotification = async function() {
     var noticeDiv = document.createElement('div');
     noticeDiv.id = 'top-notice-bar';
     noticeDiv.className = 'fixed top-0 left-0 w-full z-[100] flex justify-center items-center px-4 py-2 text-sm font-bold shadow-sm transition-transform duration-300';
-    noticeDiv.style.backgroundColor = TOP_NOTICE.bgColor;
-    noticeDiv.style.color = TOP_NOTICE.textColor;
-
+    
     var container = document.createElement('div');
     container.className = 'flex items-center justify-center text-center';
     container.innerHTML = '<i class="fa-solid fa-bullhorn mr-2"></i><span>' + noticeText + '</span>';
