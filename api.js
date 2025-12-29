@@ -48,22 +48,24 @@ async function verifyCaptcha(token) {
             body: JSON.stringify({ token })
         });
 
-        if (!response.ok) return false;
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Captcha verification failed:', errorText);
+            return false;
+        }
+
         const data = await response.json();
-
-        if (!data || !data.success) return false;
-        if (data.score !== undefined && data.score < 0.5) return false;
-
-        return true;
-
-    } catch (e) {
+        return data.success;
+    } catch (error) {
+        console.error('Captcha error:', error);
         return false;
     }
 }
 
 async function recordVisit() {
+    const dbClient = getDbClient();
     if(!dbClient) return;
-    
+
     const today = new Date().toISOString().split('T')[0];
     const lastVisitKey = 'aa_last_visit_date';
     const lastVisit = localStorage.getItem(lastVisitKey);
@@ -94,11 +96,38 @@ async function fetchVersion() {
     }
 }
 
+async function fetchTopNotice() {
+    if (typeof TOP_NOTICE === 'undefined' || !TOP_NOTICE.enabled || !TOP_NOTICE.useGithub || !TOP_NOTICE.githubUrl) {
+        return null;
+    }
+    try {
+        const r = await fetch(TOP_NOTICE.githubUrl + '?t=' + Date.now());
+        if (!r.ok) return null;
+        const text = await r.text();
+        return text.trim();
+    } catch (e) {
+        return null;
+    }
+}
+
 async function uploadImage(file) {
     if (!dbClient) return null;
-    const fileName = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${(file.name || 'image.png').split('.').pop()}`;
-    const { data, error } = await dbClient.storage.from('images').upload(fileName, file);
-    if (error) throw error;
-    const { data: { publicUrl } } = dbClient.storage.from('images').getPublicUrl(fileName);
-    return publicUrl;
+    const fileName = `img_${Date.now()}_${Math.random().toString(36).substring(2)}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+    
+    try {
+        const { data, error } = await dbClient.storage
+            .from('images')
+            .upload(fileName, file);
+
+        if (error) throw error;
+        
+        const { data: publicData } = dbClient.storage
+            .from('images')
+            .getPublicUrl(fileName);
+            
+        return publicData.publicUrl;
+    } catch (error) {
+        console.error('Upload error:', error);
+        throw error;
+    }
 }
