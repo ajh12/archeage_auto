@@ -1,8 +1,18 @@
 const SUPABASE_URL = "https://furdwhmgplodjkemkxkm.supabase.co"; 
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1cmR3aG1ncGxvZGprZW1reGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjkyMDAsImV4cCI6MjA4MTU0NTIwMH0.Om___1irBNCjya4slfaWqJeUVoyVCvvMaDHKwYm3yg0"; 
-const RECAPTCHA_SITE_KEY = '6LctpzAsAAAAAOgrbueew_LT_KmAuPkU3pcg6ozD';
+const RECAPTCHA_SITE_KEY = '6LeCozEsAAAAAIcJ8W96QeQpaadZxd_YA7p3Ao4U';
 
-const ENABLE_SNOW = true; 
+// top 공지
+const TOP_NOTICE = { 
+    enabled: true,
+    useGithub: true,
+    githubUrl: "https://raw.githubusercontent.com/Pretsg/Archeage_auto/main/notice_top.txt",
+    text: "공지사항을 불러오는 중...",
+    bgColor: "#1e293b",
+    textColor: "#ffffff"
+};
+
+const ENABLE_SNOW = true; //눈
 const PAGE_SIZE = 10;
 const ADMIN_PAGE_SIZE = 10;
 
@@ -14,30 +24,19 @@ const ROUTE_MAP = {
     'admin': '9f86d081',   
     'write': '11e389c9',   
     'search': '05972be4',  
-    'detail': 'e29a1c3f'   
-};
-
-const PAGE_TITLES = {
-    'home': '하포카 해결소',
-    'notice': '하포카 해결소 | 공지사항',
-    'free': '하포카 해결소 | 자유대화방',
-    'list': '하포카 해결소 | 오류해결소',
-    'admin': '하포카 해결소 | 관리자',
-    'write': '하포카 해결소 | 글쓰기',
-    'search': '하포카 해결소 | 검색결과',
-    'detail': '하포카 해결소' 
+    'detail': '7c2b3e4f',  
+    'test': 'e1234567'
 };
 
 var posts = [];
-var currentBoardType = 'error';
-var isAdmin = false;
+var currentBoardType = 'notice'; 
+var editingPostId = null;
+var errorViewMode = 'grid'; 
+var currentPostId = null; 
+var isAdmin = false; 
 var lastPage = 'home';
-var errorViewMode = 'grid';
-var currentPostId = null;
-var isWriting = false;
-var editingPostId = null; 
+var currentCommentImages = [];
 var editingCommentId = null;
-var currentCommentImages = []; 
 var replyingToCommentId = null; 
 var replyingToCommentAuthor = null;
 var currentEditorMode = 'html'; 
@@ -57,8 +56,8 @@ const particlesConfig = {
   },
   "interactivity": {
     "detect_on": "canvas",
-    "events": { "onhover": { "enable": false, "mode": "bubble" }, "onclick": { "enable": false, "mode": "repulse" }, "resize": true },
-    "modes": { "grab": { "distance": 400, "line_linked": { "opacity": 0.5 } }, "bubble": { "distance": 400, "size": 4, "duration": 0.3, "opacity": 1, "speed": 3 }, "repulse": { "distance": 200, "duration": 0.4 }, "push": { "particles_nb": 4 }, "remove": { "particles_nb": 2 } }
+    "events": { "onhover": { "enable": true, "mode": "repulse" }, "onclick": { "enable": true, "mode": "push" }, "resize": true },
+    "modes": { "grab": { "distance": 400, "line_linked": { "opacity": 1 } }, "bubble": { "distance": 400, "size": 40, "duration": 2, "opacity": 8, "speed": 3 }, "repulse": { "distance": 200, "duration": 0.4 }, "push": { "particles_nb": 4 }, "remove": { "particles_nb": 2 } }
   },
   "retina_detect": true
 };
