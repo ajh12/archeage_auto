@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mdEditor = document.getElementById('editorContentMarkdown');
     const titleInput = document.getElementById('inputTitle');
     const nameInput = document.getElementById('inputName');
+    const versionSelect = document.getElementById('selectedGameVersion');
 
     const autoSaveHandler = () => saveTempPost();
 
@@ -63,6 +64,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (titleInput) titleInput.addEventListener('input', autoSaveHandler);
     if (nameInput) nameInput.addEventListener('input', autoSaveHandler);
+    
+    if (versionSelect) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                    autoSaveHandler();
+                }
+            });
+        });
+        observer.observe(versionSelect, { attributes: true });
+    }
     
     document.addEventListener('selectionchange', () => {
         if (!isMarkdownMode && document.activeElement === htmlEditor) {
@@ -317,7 +329,6 @@ function execCmd(command, value = null) {
     
     if(editor) {
         editor.focus();
-        // 툴바 상태 즉시 업데이트
         setTimeout(updateToolbarState, 10);
     }
     saveTempPost(); 
@@ -331,7 +342,6 @@ function toggleFontSizeDropdown() {
 function applyFontSize(size, label) {
     execCmd('fontSize', size);
     
-    // UI 강제 업데이트
     const txt = document.getElementById('txt-font-size');
     if(txt) txt.innerText = label;
     
@@ -410,6 +420,8 @@ function saveTempPost() {
     
     if (!title && !name && !htmlContent && !mdContent && typeof editingPostId === 'undefined') return;
 
+    const versionVal = document.getElementById('selectedGameVersion') ? document.getElementById('selectedGameVersion').value : null;
+
     const tempData = {
         title,
         name,
@@ -418,6 +430,7 @@ function saveTempPost() {
         isMarkdown: isMarkdownMode,
         postId: (typeof editingPostId !== 'undefined' ? editingPostId : null),
         boardType: (typeof currentBoardType !== 'undefined' ? currentBoardType : null),
+        gameVersion: versionVal,
         timestamp: new Date().getTime()
     };
     
@@ -444,7 +457,7 @@ function loadTempPost() {
             if (typeof window.isWriting !== 'undefined') window.isWriting = true;
 
             const header = document.getElementById('write-header');
-            if(header) header.innerText = "글 수정하기 (임시 저장 복구됨)";
+            if(header) header.innerText = "글 수정하기";
             
             const nameInp = document.getElementById('inputName');
             if(nameInp) {
@@ -456,18 +469,59 @@ function loadTempPost() {
             if(pwInp) pwInp.disabled = true;
 
             restoreEditorContent(data);
+            restoreVersionUI(data.gameVersion, data.boardType);
             
             if (typeof showAlert === 'function') showAlert("작성 중이던 수정 내용을 복구했습니다.");
         } 
         else {
             if (currentEditId) return; 
             
+            if (data.boardType) {
+                if (typeof window.currentBoardType !== 'undefined') {
+                    window.currentBoardType = data.boardType;
+                }
+                
+                const header = document.getElementById('write-header');
+                if (header) {
+                    let headerText = "";
+                    if (data.boardType === 'notice') headerText = "📢 공지사항 작성";
+                    else if (data.boardType === 'free') headerText = "💬 자유대화방 글쓰기";
+                    else if (data.boardType === 'test') headerText = "🧪 관리자 테스트 글쓰기"; 
+                    else headerText = "🛠️ 오류 질문 작성";
+                    header.innerText = headerText;
+                }
+            }
+
             restoreEditorContent(data);
+            restoreVersionUI(data.gameVersion, data.boardType);
         }
 
     } catch (e) {
         console.error('Auto save load failed', e);
         localStorage.removeItem('tempPost'); 
+    }
+}
+
+function restoreVersionUI(version, boardType) {
+    const versionContainer = document.getElementById('version-select-container');
+    if (versionContainer) {
+        if (boardType === 'test' || boardType === 'free') {
+            versionContainer.classList.remove('hidden');
+        } else {
+            versionContainer.classList.add('hidden');
+        }
+
+        const versionInput = document.getElementById('selectedGameVersion');
+        const versionText = document.getElementById('txt-version-select');
+        
+        if (versionInput) versionInput.value = version || "";
+        if (versionText) {
+            let label = "선택안함";
+            if(version === '1.2') label = "1.2 버전";
+            else if(version === '5.0') label = "5.0 버전";
+            else if(version === 'common') label = "공통";
+            versionText.innerText = label;
+        }
     }
 }
 
@@ -505,6 +559,10 @@ function clearTempPost() {
     if(document.getElementById('editorContentMarkdown')) document.getElementById('editorContentMarkdown').value = '';
     if(document.getElementById('markdown-preview')) document.getElementById('markdown-preview').innerHTML = '';
     
+    if(document.getElementById('selectedGameVersion')) document.getElementById('selectedGameVersion').value = '';
+    if(document.getElementById('txt-version-select')) document.getElementById('txt-version-select').innerText = '선택안함';
+    if(document.getElementById('version-select-container')) document.getElementById('version-select-container').classList.add('hidden');
+
     const tabHtml = document.getElementById('tab-html');
     if (tabHtml) {
         tabHtml.disabled = false;
