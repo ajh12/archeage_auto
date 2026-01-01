@@ -365,6 +365,21 @@
             
             <div id="detail-content" class="prose max-w-none mb-12 text-slate-800 leading-relaxed min-h-[200px]"></div>
             
+            <div class="flex justify-center mb-12">
+                <button id="btn-like" onclick="toggleLike()" class="group relative px-8 py-4 bg-white border-2 border-slate-100 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:border-red-200 hover:shadow-red-100 hover:shadow-lg hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                        <i id="like-icon" class="fa-solid fa-heart text-2xl text-slate-300 group-hover:text-red-500 transition-colors duration-300"></i>
+                    </div>
+                    <div class="flex flex-col items-start">
+                        <span class="text-xs font-bold text-slate-400 group-hover:text-slate-600 transition-colors">도움이 되었나요?</span>
+                        <div class="flex items-center gap-1">
+                            <span class="text-lg font-extrabold text-slate-700">좋아요</span>
+                            <span id="like-count" class="text-lg font-extrabold text-slate-700 group-hover:text-red-500 transition-colors ml-1">0</span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
             <div class="bg-slate-50 rounded-2xl p-6 md:p-8 border border-slate-100">
                 <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center"><i class="fa-regular fa-comments mr-2"></i> 댓글 <span id="detail-comments-count" class="text-blue-600 ml-1">0</span></h3>
                 <div id="comment-list" class="space-y-6 mb-8"></div>
@@ -629,6 +644,7 @@
     <script src="config.js"></script>
     <script src="utils.js"></script>
     <script src="api.js"></script>
+    <script src="likes.js"></script>
     <script src="editor.js"></script>
     <script src="ui.js"></script>
     <script src="admin.js"></script>
