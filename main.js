@@ -1,13 +1,13 @@
-var pendingActionType = null; 
+var pendingActionType = null;
 var pendingTarget = null;
 var pendingTargetId = null;
 
-var isSubmitting = false; 
+var isSubmitting = false;
 
 if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
-    window.currentEditorMode = 'html'; 
-    window.isWriting = false; 
+    window.currentEditorMode = 'html';
+    window.isWriting = false;
 
     const uiRouter = (typeof window.router === 'function') ? window.router : null;
 
@@ -15,7 +15,7 @@ if (!window.hasMainJsRun) {
         window.addEventListener('beforeunload', (e) => {
             if (window.isWriting) {
                 e.preventDefault();
-                e.returnValue = ''; 
+                e.returnValue = '';
             }
         });
 
@@ -701,8 +701,10 @@ if (!window.hasMainJsRun) {
             if(gBtn) gBtn.classList.toggle('view-btn-active', errorViewMode === 'grid');
             if(lBtn) lBtn.classList.toggle('view-btn-active', errorViewMode === 'list');
         }
-
-        renderPostList(posts, 'board-container', errorViewMode, currentBoardType, isAdmin);
+        
+        if (typeof window.renderPostList === 'function') {
+            window.renderPostList(posts, 'board-container', errorViewMode, currentBoardType, isAdmin);
+        }
     }
 
     async function readPost(id, directData = null) {
@@ -764,6 +766,15 @@ if (!window.hasMainJsRun) {
         currentPostId = id;
         renderPostDetail(post, isAdmin);
         
+        const likeCountEl = document.getElementById('like-count');
+        if (likeCountEl && post.likes !== undefined) {
+            likeCountEl.innerText = post.likes;
+        }
+
+        if (typeof initLikeButton === 'function') {
+            await initLikeButton(id);
+        }
+
         const btnDelete = document.getElementById('btn-force-delete');
         const btnEdit = document.getElementById('btn-edit-post');
         if(btnDelete) {
