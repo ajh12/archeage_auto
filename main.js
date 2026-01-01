@@ -763,6 +763,11 @@ if (!window.hasMainJsRun) {
             return window.router(currentBoardType || 'list');
         }
         
+        if (post.type) {
+            currentBoardType = post.type;
+            lastPage = post.type === 'error' ? 'list' : post.type;
+        }
+
         currentPostId = id;
         renderPostDetail(post, isAdmin);
         
