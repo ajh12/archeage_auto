@@ -106,14 +106,23 @@ if (!window.hasMainJsRun) {
 
         if(typeof loadLocalPostsData === 'function') loadLocalPostsData(); 
         
-        const initialHash = window.location.hash.replace('#', '');
+        const rawHash = window.location.hash;
+        const initialHash = rawHash.startsWith('#') ? decodeURIComponent(rawHash.substring(1)) : '';
         const hashParts = initialHash.split('/');
         const pageCode = hashParts[0];
         const paramId = hashParts[1];
 
         const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home'; 
         
-        if (realPage === 'detail') { 
+        if (realPage === 'write') {
+            window.router('write', false);
+            if(loader) setTimeout(() => loader.classList.add('hidden'), 300);
+            
+            if (typeof loadTempPost === 'function') {
+                setTimeout(loadTempPost, 100);
+            }
+        }
+        else if (realPage === 'detail') { 
             let targetId = paramId;
             if (!targetId) {
                 targetId = localStorage.getItem('aa_current_post_id');
@@ -154,10 +163,12 @@ if (!window.hasMainJsRun) {
             return;
         }
 
-        const initialHash = window.location.hash.replace('#', '');
-        const hashParts = initialHash.split('/');
+        const rawHash = window.location.hash;
+        const currentHash = rawHash.startsWith('#') ? decodeURIComponent(rawHash.substring(1)) : '';
+        const hashParts = currentHash.split('/');
         const pageCode = hashParts[0];
         const paramId = hashParts[1];
+        
         const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home';
 
         if (realPage === 'detail' && paramId) {
@@ -183,7 +194,9 @@ if (!window.hasMainJsRun) {
     window.router = function(page, pushHistory = true) {
         if(pushHistory) {
             const code = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP[page]) ? ROUTE_MAP[page] : page;
-            history.pushState({ page }, null, page === 'home' ? ' ' : `#${code}`);
+            if (page !== 'detail') {
+                history.pushState({ page }, null, page === 'home' ? ' ' : `#${code}`);
+            }
         }
         
         if (uiRouter && typeof uiRouter === 'function') {
@@ -695,11 +708,16 @@ if (!window.hasMainJsRun) {
     async function readPost(id, directData = null) {
         const dbClient = getDbClient();
         localStorage.setItem('aa_current_post_id', id);
-        const viewedKey = `viewed_post_${id}_${getClientIP() || 'unknown'}`;
         
         const detailCode = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP['detail']) ? ROUTE_MAP['detail'] : 'detail';
-        history.pushState({ page: 'detail', id: id }, null, `#${detailCode}/${id}`);
+        const newUrl = `#${detailCode}/${id}`;
+        
+        if (window.location.hash !== newUrl) {
+            history.pushState({ page: 'detail', id: id }, null, newUrl);
+        }
 
+        const viewedKey = `viewed_post_${id}_${getClientIP() || 'unknown'}`;
+        
         if(dbClient && !localStorage.getItem(viewedKey)) {
             try {
                 const { error } = await dbClient.rpc('increment_views', { row_id: id });
@@ -739,7 +757,9 @@ if (!window.hasMainJsRun) {
              post = posts.find(p => p.id == id);
         }
 
-        if (!post) return window.router('list');
+        if (!post) {
+            return window.router(currentBoardType || 'list');
+        }
         
         currentPostId = id;
         renderPostDetail(post, isAdmin);
@@ -765,7 +785,7 @@ if (!window.hasMainJsRun) {
         
         const uiRouter = (typeof window.router === 'function') ? window.router : null;
         if (uiRouter && typeof uiRouter === 'function') {
-            uiRouter('detail', isAdmin);
+            uiRouter('detail', false);
         }
     }
 
