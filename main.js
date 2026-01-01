@@ -107,12 +107,20 @@ if (!window.hasMainJsRun) {
         if(typeof loadLocalPostsData === 'function') loadLocalPostsData(); 
         
         const initialHash = window.location.hash.replace('#', '');
-        const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(initialHash) : 'home'; 
+        const hashParts = initialHash.split('/');
+        const pageCode = hashParts[0];
+        const paramId = hashParts[1];
+
+        const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home'; 
         
         if (realPage === 'detail') { 
-            const savedId = localStorage.getItem('aa_current_post_id');
-            if (savedId) {
-                readPost(savedId).then(() => {
+            let targetId = paramId;
+            if (!targetId) {
+                targetId = localStorage.getItem('aa_current_post_id');
+            }
+
+            if (targetId) {
+                readPost(targetId).then(() => {
                     if(loader) setTimeout(() => loader.classList.add('hidden'), 300);
                 }).catch(() => {
                     window.router('home', false);
@@ -146,10 +154,18 @@ if (!window.hasMainJsRun) {
             return;
         }
 
-        if (event.state && event.state.page) {
+        const initialHash = window.location.hash.replace('#', '');
+        const hashParts = initialHash.split('/');
+        const pageCode = hashParts[0];
+        const paramId = hashParts[1];
+        const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home';
+
+        if (realPage === 'detail' && paramId) {
+            readPost(paramId);
+        } else if (event.state && event.state.page) {
             window.router(event.state.page, false);
         } else {
-            window.router('home', false);
+            window.router(realPage, false);
         }
     });
 
@@ -196,11 +212,8 @@ if (!window.hasMainJsRun) {
 
     window.confirmNavigation = (targetPage) => {
         if (targetPage === 'back') {
-            targetPage = lastPage;
-            if(targetPage === 'admin') {
-                window.router('admin');
-                return;
-            }
+            history.back();
+            return;
         }
 
         if (window.isWriting) {
@@ -684,6 +697,9 @@ if (!window.hasMainJsRun) {
         localStorage.setItem('aa_current_post_id', id);
         const viewedKey = `viewed_post_${id}_${getClientIP() || 'unknown'}`;
         
+        const detailCode = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP['detail']) ? ROUTE_MAP['detail'] : 'detail';
+        history.pushState({ page: 'detail', id: id }, null, `#${detailCode}/${id}`);
+
         if(dbClient && !localStorage.getItem(viewedKey)) {
             try {
                 const { error } = await dbClient.rpc('increment_views', { row_id: id });
@@ -746,7 +762,11 @@ if (!window.hasMainJsRun) {
 
         cancelReply();
         renderComments(post.comments || [], 'comment-list', isAdmin);
-        window.router('detail');
+        
+        const uiRouter = (typeof window.router === 'function') ? window.router : null;
+        if (uiRouter && typeof uiRouter === 'function') {
+            uiRouter('detail', isAdmin);
+        }
     }
 
     async function performSearch(keyword, searchType) {
