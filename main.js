@@ -11,6 +11,16 @@ if (!window.hasMainJsRun) {
 
     const uiRouter = (typeof window.router === 'function') ? window.router : null;
 
+    window.toggleTheme = function() {
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('beforeunload', (e) => {
             if (window.isWriting) {
@@ -855,7 +865,12 @@ if (!window.hasMainJsRun) {
         noResult.classList.add('hidden');
 
         const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지', 'test':'테스트'};
-        const typeColor = {'free':'bg-slate-100 text-slate-600', 'error':'bg-red-100 text-red-600', 'notice':'bg-blue-100 text-blue-600', 'test':'bg-purple-100 text-purple-600'};
+        const typeColor = {
+            'free':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', 
+            'error':'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', 
+            'notice':'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', 
+            'test':'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+        };
 
         results.forEach(post => {
             let highlightedTitle = escapeHtml(post.title);
@@ -883,9 +898,21 @@ if (!window.hasMainJsRun) {
                 }
             }
             
-            const badgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded font-bold ${typeColor[post.type] || 'bg-gray-100'}">${typeMap[post.type] || '기타'}</span>`;
+            const badgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded font-bold ${typeColor[post.type] || 'bg-gray-100 dark:bg-slate-800'}">${typeMap[post.type] || '기타'}</span>`;
 
-            container.innerHTML += `<div onclick="readPost('${post.id}')" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition cursor-pointer"><div class="flex items-center gap-2 mb-2">${badgeHtml}<span class="text-xs text-slate-400">${new Date(post.created_at).toLocaleDateString()}</span></div><h3 class="font-bold text-lg text-slate-800 mb-2 truncate">${highlightedTitle}</h3><p class="text-sm text-slate-500 mb-3 break-all">${escapeHtml(snippet)}</p><div class="flex items-center gap-2 text-xs text-slate-400"><span>${escapeHtml(post.author)}</span><span class="mx-1">|</span><i class="fa-regular fa-eye mr-1"></i> ${post.views||0}</div></div>`;
+            container.innerHTML += `<div onclick="readPost('${post.id}')" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
+                <div class="flex items-center gap-2 mb-2">
+                    ${badgeHtml}
+                    <span class="text-xs text-slate-400 dark:text-slate-500">${new Date(post.created_at).toLocaleDateString()}</span>
+                </div>
+                <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-2 truncate">${highlightedTitle}</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-3 break-all">${escapeHtml(snippet)}</p>
+                <div class="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                    <span>${escapeHtml(post.author)}</span>
+                    <span class="mx-1">|</span>
+                    <i class="fa-regular fa-eye mr-1"></i> ${post.views||0}
+                </div>
+            </div>`;
         });
     }
 
@@ -1209,10 +1236,8 @@ if (!window.hasMainJsRun) {
             });
 
             if(error) throw error;
-            const post = posts.find(p => p.id == currentPostId);
-            if(!post.comments) post.comments = [];
-            post.comments.push(data);
-            renderComments(post.comments, 'comment-list', isAdmin);
+            
+            await readPost(currentPostId);
             
             document.getElementById('cmtContent').value = '';
             document.getElementById('cmtPw').value = '';
@@ -1436,12 +1461,7 @@ if (!window.hasMainJsRun) {
             if(error) showAlert("삭제 실패");
             else {
                 showAlert("삭제되었습니다.");
-                const post = posts.find(p => p.id == currentPostId);
-                if(post && post.comments) {
-                    const idx = post.comments.findIndex(c => c.id == id);
-                    if(idx !== -1) post.comments.splice(idx, 1);
-                }
-                renderComments(post ? post.comments : [], 'comment-list', isAdmin);
+                readPost(currentPostId);
             }
         }
     }
