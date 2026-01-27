@@ -259,14 +259,18 @@ window.toggleViewMode = function(mode) {
         container.classList.add('grid', 'gap-6');
         btnGrid.classList.add('bg-slate-100', 'text-slate-800');
         btnGrid.classList.remove('text-slate-400');
-        btnList.classList.remove('bg-slate-100', 'text-slate-800');
+        btnGrid.classList.add('dark:bg-slate-800', 'dark:text-slate-200');
+        
+        btnList.classList.remove('bg-slate-100', 'text-slate-800', 'dark:bg-slate-800', 'dark:text-slate-200');
         btnList.classList.add('text-slate-400');
     } else {
         container.classList.remove('grid', 'gap-6');
         container.classList.add('flex', 'flex-col', 'space-y-2');
         btnList.classList.add('bg-slate-100', 'text-slate-800');
         btnList.classList.remove('text-slate-400');
-        btnGrid.classList.remove('bg-slate-100', 'text-slate-800');
+        btnList.classList.add('dark:bg-slate-800', 'dark:text-slate-200');
+        
+        btnGrid.classList.remove('bg-slate-100', 'text-slate-800', 'dark:bg-slate-800', 'dark:text-slate-200');
         btnGrid.classList.add('text-slate-400');
     }
 };
@@ -283,9 +287,9 @@ window.switchAdminTab = function(tabId) {
         var btn = document.getElementById('tab-admin-' + t);
         if (btn) {
             if (t === tabId) {
-                btn.className = "px-4 py-2 font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 rounded-t-lg transition whitespace-nowrap";
+                btn.className = "px-4 py-2 font-bold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20 rounded-t-lg transition whitespace-nowrap";
             } else {
-                btn.className = "px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap";
+                btn.className = "px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap";
             }
         }
     });
@@ -312,7 +316,7 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
     container.innerHTML = '';
     
     if(postsData.length === 0) { 
-        container.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400">게시글이 없습니다.</div>'; 
+        container.innerHTML = '<div class="col-span-full text-center py-20 text-slate-400 dark:text-slate-500">게시글이 없습니다.</div>'; 
         return; 
     }
 
@@ -340,27 +344,32 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
 
         var cmtCount = post.comments ? post.comments.length : 0;
         var displayImg = post.image_url || post.image;
-        var pinnedClass = post.is_pinned ? 'pinned-post' : '';
-        var pinnedBadge = post.is_pinned ? '<div class="pinned-badge"><i class="fa-solid fa-thumbtack"></i></div>' : '';
         
-        var cardStyle = "bg-white border-slate-200";
-        if(post.reports >= 5) {
-            cardStyle = "bg-red-50 border-red-300 ring-2 ring-red-200";
+        var cardStyle = "bg-white dark:bg-black border border-slate-200 dark:border-slate-800";
+        var titleColor = "text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400";
+        var pinnedBadge = "";
+        
+        if (post.reports >= 5) {
+            cardStyle = "bg-red-50 dark:bg-red-900/10 border-red-300 dark:border-red-800 ring-2 ring-red-200 dark:ring-red-900/30";
+        } else if (post.is_pinned) {
+            cardStyle = "bg-blue-50 dark:bg-black border-2 border-blue-400 dark:border-blue-500 shadow-md dark:shadow-blue-500/10 relative";
+            titleColor = "text-blue-700 dark:text-blue-400"; 
+            pinnedBadge = '<div class="absolute top-3 right-3 text-blue-500 dark:text-blue-400 text-lg z-10"><i class="fa-solid fa-thumbtack"></i></div>';
         }
 
         var versionBadge = '';
         if (post.game_version) {
-            var vClass = 'bg-slate-100 text-slate-600 border-slate-200';
+            var vClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
             var vText = post.game_version;
             
             if (vText === '1.2') {
-                vClass = 'bg-blue-50 text-blue-600 border-blue-200';
+                vClass = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800';
                 vText = '1.2';
             } else if (vText === '5.0') {
-                vClass = 'bg-purple-50 text-purple-600 border-purple-200';
+                vClass = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800';
                 vText = '5.0';
             } else if (vText === 'common') {
-                vClass = 'bg-green-50 text-green-600 border-green-200';
+                vClass = 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800';
                 vText = '공통';
             }
             
@@ -370,15 +379,15 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
         var html = '';
         if(container.className.includes('grid')) {
             var imgHtml = displayImg ? 
-                '<div class="h-40 bg-slate-100 overflow-hidden group relative"><img src="' + displayImg + '" class="w-full h-full object-cover transition duration-500 group-hover:scale-105"></div>' : 
-                '<div class="h-40 bg-slate-50 flex items-center justify-center text-slate-300 text-3xl"></div>';
+                '<div class="h-40 bg-slate-100 dark:bg-slate-900 overflow-hidden group relative"><img src="' + displayImg + '" class="w-full h-full object-cover transition duration-500 group-hover:scale-105"></div>' : 
+                '<div class="h-40 bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-300 dark:text-slate-700 text-3xl"></div>';
                 
             if (currentBoardType === 'free' || currentBoardType === 'test') imgHtml = ''; 
 
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl border shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer ' + pinnedClass + '">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-slate-800 text-lg mb-2 line-clamp-2 group-hover:text-blue-600 transition">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-50 flex flex-col"><div class="flex justify-between text-xs text-slate-500"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-lg mb-2 line-clamp-2 transition ' + titleColor + '">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col"><div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         } else {
             var iconClass = currentBoardType==='notice' ? 'fa-bullhorn text-blue-500' : 'fa-file-lines';
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' border rounded-xl shadow-sm hover:border-blue-400 transition cursor-pointer group ' + pinnedClass + '">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold text-slate-800 truncate group-hover:text-blue-600 transition">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' rounded-xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer group">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400 dark:text-slate-500"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold truncate transition ' + titleColor + '">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         }
         container.innerHTML += html;
     });
@@ -398,7 +407,7 @@ window.renderPagination = function(containerId, totalCount, pageSize, currentPag
     var endPage = Math.min(startPage + maxButtons - 1, totalPages);
 
     var prevBtn = document.createElement('button');
-    prevBtn.className = "pagination-btn";
+    prevBtn.className = "pagination-btn dark:bg-black dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900";
     prevBtn.disabled = currentPage === 1;
     prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
     prevBtn.onclick = function() { onPageChange(currentPage - 1); };
@@ -407,7 +416,8 @@ window.renderPagination = function(containerId, totalCount, pageSize, currentPag
     for (var i = startPage; i <= endPage; i++) {
         (function(pageIndex) {
             var btn = document.createElement('button');
-            btn.className = "pagination-btn " + (pageIndex === currentPage ? 'active' : '');
+            var activeClass = pageIndex === currentPage ? 'active' : 'dark:bg-black dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900';
+            btn.className = "pagination-btn " + activeClass;
             btn.innerText = pageIndex;
             btn.onclick = function() { onPageChange(pageIndex); };
             container.appendChild(btn);
@@ -415,7 +425,7 @@ window.renderPagination = function(containerId, totalCount, pageSize, currentPag
     }
 
     var nextBtn = document.createElement('button');
-    nextBtn.className = "pagination-btn";
+    nextBtn.className = "pagination-btn dark:bg-black dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-900";
     nextBtn.disabled = currentPage === totalPages;
     nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
     nextBtn.onclick = function() { onPageChange(currentPage + 1); };
@@ -427,17 +437,17 @@ window.renderPostDetail = function(post, isAdmin) {
 
     var versionBadge = '';
     if (post.game_version) {
-        var vClass = 'bg-slate-100 text-slate-600 border-slate-200';
+        var vClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
         var vText = post.game_version;
         
         if (vText === '1.2') {
-            vClass = 'bg-blue-50 text-blue-600 border-blue-200';
+            vClass = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800';
             vText = '1.2';
         } else if (vText === '5.0') {
-            vClass = 'bg-purple-50 text-purple-600 border-purple-200';
+            vClass = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800';
             vText = '5.0';
         } else if (vText === 'common') {
-            vClass = 'bg-green-50 text-green-600 border-green-200';
+            vClass = 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800';
             vText = '공통';
         }
         versionBadge = '<span class="inline-block text-sm px-2 py-1 rounded border font-bold mr-2 align-middle ' + vClass + '">' + vText + '</span>';
@@ -500,11 +510,11 @@ window.renderPostDetail = function(post, isAdmin) {
     var badge = document.getElementById('detail-badge');
     if(badge) {
         var catName = "기타";
-        var catClass = "bg-gray-100 text-gray-600";
-        if (post.type === 'notice') { catName = "공지"; catClass = "bg-blue-100 text-blue-600"; }
-        else if (post.type === 'free') { catName = "자유"; catClass = "bg-slate-100 text-slate-600"; }
-        else if (post.type === 'error') { catName = "오류질문"; catClass = "bg-red-100 text-red-600"; }
-        else if (post.type === 'test') { catName = "테스트"; catClass = "bg-purple-100 text-purple-600"; }
+        var catClass = "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400";
+        if (post.type === 'notice') { catName = "공지"; catClass = "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"; }
+        else if (post.type === 'free') { catName = "자유"; catClass = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"; }
+        else if (post.type === 'error') { catName = "오류질문"; catClass = "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"; }
+        else if (post.type === 'test') { catName = "테스트"; catClass = "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"; }
         badge.innerText = catName;
         badge.className = "text-xs px-2 py-1 rounded font-bold " + catClass;
     }
@@ -516,22 +526,29 @@ window.renderPostDetail = function(post, isAdmin) {
             var pinBtn = document.getElementById('btn-pin-post');
             if(pinBtn) {
                 pinBtn.innerHTML = post.is_pinned ? '<i class="fa-solid fa-thumbtack"></i> 고정 해제' : '<i class="fa-solid fa-thumbtack"></i> 상단 고정';
-                if(post.is_pinned) pinBtn.classList.add('text-blue-600');
-                else pinBtn.classList.remove('text-blue-600');
+                if(post.is_pinned) pinBtn.classList.add('text-blue-600', 'dark:text-blue-400');
+                else pinBtn.classList.remove('text-blue-600', 'dark:text-blue-400');
             }
             
             var catSelect = document.getElementById('move-category-select');
             if(catSelect) {
                 catSelect.innerHTML = '<option value="">카테고리 이동</option>';
-                var categories = { 'notice': '공지사항', 'free': '자유대화방', 'error': '오류해결소' };
+                var categories = { 'free': '자유대화방', 'error': '오류해결소' };
                 for(var key in categories) {
-                    if(key !== post.type) {
+                    var isCurrent = (key === post.type) || (key === 'error' && post.type === 'list');
+                    if(!isCurrent) {
                         var opt = document.createElement('option');
                         opt.value = key;
                         opt.innerText = categories[key];
                         catSelect.appendChild(opt);
                     }
                 }
+                
+                catSelect.onchange = function() {
+                    if (typeof window.changePostCategory === 'function') {
+                        window.changePostCategory(this, post.id);
+                    }
+                };
             }
         } else {
             adminControls.classList.add('hidden');
@@ -591,21 +608,21 @@ window.toggleCommentContent = function(btn) {
     }
 };
 
-window.renderCommentNode = function(node, depth, listElement, isAdmin) {
-    var safeDepth = Math.min(depth, 3);
+window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAuthor) {
+    var displayDepth = Math.min(depth, 1);
     
     var authorBadge = '';
     if(node.author === '하포카' || node.author === 'Admin') authorBadge = '<span class="admin-badge-icon"><i class="fa-solid fa-circle-check"></i></span>';
 
-    var wrapperClass = safeDepth > 0 ? ('reply-item reply-depth-' + safeDepth) : "bg-white p-4 rounded-xl border border-slate-100";
-    var indicator = safeDepth > 0 ? '<i class="fa-solid fa-turn-up fa-rotate-90 reply-indicator"></i>' : "";
+    var wrapperClass = displayDepth > 0 ? ('reply-item reply-depth-' + displayDepth) : "bg-white dark:bg-black p-4 rounded-xl border border-slate-100 dark:border-slate-800";
+    var indicator = displayDepth > 0 ? '<i class="fa-solid fa-turn-up fa-rotate-90 reply-indicator"></i>' : "";
 
     if (node.reports >= 5) {
-        if (safeDepth > 0) {
-            wrapperClass = wrapperClass.replace(/bg-slate-\d+/g, 'bg-red-50');
-            wrapperClass += " border-red-200 ring-1 ring-red-100";
+        if (displayDepth > 0) {
+            wrapperClass = wrapperClass.replace(/bg-slate-\d+/g, 'bg-red-50 dark:bg-red-900/10');
+            wrapperClass += " border-red-200 dark:border-red-800 ring-1 ring-red-100 dark:ring-red-900/30";
         } else {
-            wrapperClass = "bg-red-50 p-4 rounded-xl border border-red-200 ring-1 ring-red-100";
+            wrapperClass = "bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-200 dark:border-red-800 ring-1 ring-red-100 dark:ring-red-900/30";
         }
     }
 
@@ -616,6 +633,11 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
     }
 
     var content = node.displayContent;
+    
+    if (depth >= 2 && parentAuthor) {
+        content = '<span class="text-blue-600 dark:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/30 px-1 rounded mr-1 text-xs">@' + parentAuthor + '</span> ' + content;
+    }
+
     var textOnly = content.replace(/<[^>]*>/g, '').trim(); 
     var isLongContent = textOnly.length > 300; 
     var shortContent = textOnly.substring(0, 300) + '...';
@@ -623,28 +645,28 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
     var contentHtml = '';
     if (isLongContent) {
         contentHtml = 
-            '<div class="comment-content-short text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
-            '<div class="comment-content-full hidden text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
-            '<button class="text-blue-500 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="window.toggleCommentContent(this)">...더보기</button>';
+            '<div class="comment-content-short text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
+            '<div class="comment-content-full hidden text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
+            '<button class="text-blue-500 dark:text-blue-400 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="window.toggleCommentContent(this)">...더보기</button>';
     } else {
-        contentHtml = '<div class="text-slate-600 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
+        contentHtml = '<div class="text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
     }
 
     var html = 
         '<div class="flex gap-3 group mb-3 ' + wrapperClass + '">' +
             indicator +
-            '<div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-xs flex-shrink-0 select-none">' + node.author.charAt(0) + '</div>' +
+            '<div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold text-xs flex-shrink-0 select-none">' + node.author.charAt(0) + '</div>' +
             '<div class="flex-grow min-w-0">' +
                 '<div class="flex items-baseline gap-2 justify-between">' +
                     '<div class="flex items-baseline gap-2">' +
-                        '<span class="font-bold text-slate-700 text-sm">' + (typeof escapeHtml === 'function' ? escapeHtml(node.author) : node.author) + authorBadge + '</span>' +
+                        '<span class="font-bold text-slate-700 dark:text-slate-200 text-sm">' + (typeof escapeHtml === 'function' ? escapeHtml(node.author) : node.author) + authorBadge + '</span>' +
                         ipTag +
-                        '<span class="text-xs text-slate-400">' + new Date(node.created_at).toLocaleString() + '</span>' +
+                        '<span class="text-xs text-slate-400 dark:text-slate-500">' + new Date(node.created_at).toLocaleString() + '</span>' +
                     '</div>' +
                     '<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition">' +
-                        '<button onclick="replyToComment(\'' + node.id + '\', \'' + node.author + '\')" class="text-slate-400 hover:text-blue-600 text-xs font-bold mr-2"><i class="fa-solid fa-reply"></i> 답글</button>' +
+                        '<button onclick="replyToComment(\'' + node.id + '\', \'' + node.author + '\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold mr-2"><i class="fa-solid fa-reply"></i> 답글</button>' +
                         '<button onclick="reportComment(\'' + node.id + '\')" class="text-slate-400 hover:text-red-500 text-xs font-bold mr-2"><i class="fa-solid fa-land-mine-on"></i> 신고</button>' +
-                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'edit_comment\')" class="text-slate-400 hover:text-blue-600 text-xs"><i class="fa-solid fa-pen"></i></button>' +
+                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'edit_comment\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs"><i class="fa-solid fa-pen"></i></button>' +
                         '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'delete_comment\')" class="text-slate-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>' +
                     '</div>' +
                 '</div>' +
@@ -658,7 +680,7 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin) {
 
     if (node.children && node.children.length > 0) {
         node.children.forEach(function(child) {
-            window.renderCommentNode(child, depth + 1, listElement, isAdmin);
+            window.renderCommentNode(child, depth + 1, listElement, isAdmin, node.author);
         });
     }
 };
@@ -672,7 +694,7 @@ window.renderComments = function(cmts, containerId, isAdmin) {
     if(countEl) countEl.innerText = cmts.length;
     
     if (cmts.length === 0) { 
-        list.innerHTML = '<p class="text-slate-400 text-center py-4">아직 댓글이 없습니다.</p>'; 
+        list.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-center py-4">아직 댓글이 없습니다.</p>'; 
         return; 
     }
 
