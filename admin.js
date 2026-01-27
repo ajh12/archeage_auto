@@ -584,7 +584,7 @@ window.changePostCategory = function(selectEl, postId) {
     document.getElementById('moveTargetCategoryName').value = typeNames[newType] || newType;
     
     var versionContainer = document.getElementById('moveVersionContainer');
-    if (newType === 'free' || newType === 'error') { 
+    if (newType === 'free') { 
         versionContainer.classList.remove('hidden');
     } else {
         versionContainer.classList.add('hidden');
@@ -608,7 +608,7 @@ window.executeCategoryMove = async function() {
     if(!postId || !newType) return;
 
     var newVersion = 'common';
-    if (newType === 'free' || newType === 'error') {
+    if (newType === 'free') {
         newVersion = document.getElementById('moveVersionSelect').value;
     }
 
@@ -624,7 +624,8 @@ window.executeCategoryMove = async function() {
 
         var content = post.content || '';
         content = content.replace(/<!-- version:.*? -->/g, '');
-        if (newType === 'free' || newType === 'error') {
+        
+        if (newType === 'free') {
              content = `<!-- version:${newVersion} -->` + content;
         }
 
@@ -636,7 +637,8 @@ window.executeCategoryMove = async function() {
         if(error) alert('이동 실패: ' + error.message);
         else {
             alert('게시글이 이동되었습니다.');
-            window.router('list'); 
+            if(newType === 'error') window.router('list');
+            else window.router(newType); 
         }
     }
 };
