@@ -6,7 +6,13 @@ var deletedPostPage = 0;
 var deletedCommentPage = 0;
 var visitorChartInstance = null;
 
-function switchAdminTab(tabName) {
+var pendingCategoryMove = {
+    selectEl: null,
+    postId: null,
+    targetType: null
+};
+
+window.switchAdminTab = function(tabName) {
     var tabs = ['dashboard', 'deleted-posts', 'deleted-comments', 'reported', 'ip-search'];
     tabs.forEach(function(t) {
         var btn = document.getElementById('tab-admin-' + t);
@@ -34,7 +40,9 @@ function switchAdminTab(tabName) {
             renderIpSearchResults();
         }
     }
-}
+    
+    window.currentAdminTab = tabName;
+};
 
 async function updateAdminStats() {
     var dbClient = getDbClient();
@@ -564,45 +572,72 @@ async function deleteCommentByAdmin(id) {
     }, "댓글 삭제", "삭제");
 }
 
-window.changePostCategory = async function(selectEl, postId) {
+window.changePostCategory = function(selectEl, postId) {
     var newType = selectEl.value;
     if(!newType) return;
     
-    var dbClient = getDbClient();
-    var newVersion = 'common'; 
+    pendingCategoryMove.selectEl = selectEl;
+    pendingCategoryMove.postId = postId;
+    pendingCategoryMove.targetType = newType;
 
-    if (newType === 'free') {
-        var input = prompt("이동할 카테고리의 버전 태그를 입력해주세요.\n(입력값: 1.2, 5.0, common)", "common");
-        if (input === null) {
-            selectEl.value = ""; 
-            return; 
-        }
-        input = input.trim();
-        if (['1.2', '5.0', 'common'].includes(input)) {
-            newVersion = input;
-        } else {
-            alert("잘못된 버전입니다. 'common'으로 설정됩니다.");
-            newVersion = 'common';
-        }
-    } 
-    else if (newType === 'error') {
-        newVersion = 'common';
+    var typeNames = { 'free': '자유대화방', 'error': '오류해결소', 'notice': '공지사항' };
+    document.getElementById('moveTargetCategoryName').value = typeNames[newType] || newType;
+    
+    var versionContainer = document.getElementById('moveVersionContainer');
+    if (newType === 'free' || newType === 'error') { 
+        versionContainer.classList.remove('hidden');
+    } else {
+        versionContainer.classList.add('hidden');
     }
 
+    document.getElementById('moveCategoryModal').classList.remove('hidden');
+    
+    selectEl.value = "";
+};
+
+window.closeMoveCategoryModal = function() {
+    document.getElementById('moveCategoryModal').classList.add('hidden');
+    pendingCategoryMove = { selectEl: null, postId: null, targetType: null };
+};
+
+window.executeCategoryMove = async function() {
+    var dbClient = getDbClient();
+    var postId = pendingCategoryMove.postId;
+    var newType = pendingCategoryMove.targetType;
+    
+    if(!postId || !newType) return;
+
+    var newVersion = 'common';
+    if (newType === 'free' || newType === 'error') {
+        newVersion = document.getElementById('moveVersionSelect').value;
+    }
+
+    closeMoveCategoryModal();
+
     if(confirm('정말로 카테고리를 이동하시겠습니까?')) {
-        var res = await dbClient.from('posts').update({
-            type: newType,
+        var { data: post, error: fetchError } = await dbClient.from('posts').select('content').eq('id', postId).single();
+        
+        if (fetchError || !post) {
+            alert('게시글 정보를 불러오는데 실패했습니다.');
+            return;
+        }
+
+        var content = post.content || '';
+        content = content.replace(/<!-- version:.*? -->/g, '');
+        if (newType === 'free' || newType === 'error') {
+             content = `<!-- version:${newVersion} -->` + content;
+        }
+
+        var { error } = await dbClient.from('posts').update({ 
+            type: newType, 
+            content: content,
             game_version: newVersion
         }).eq('id', postId);
-
-        if(res.error) {
-            alert('이동 실패: ' + res.error.message);
-            selectEl.value = "";
-        } else {
+        
+        if(error) alert('이동 실패: ' + error.message);
+        else {
             alert('게시글이 이동되었습니다.');
-            window.location.reload();
+            window.router('list'); 
         }
-    } else {
-        selectEl.value = "";
     }
 };
