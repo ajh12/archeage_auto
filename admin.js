@@ -630,8 +630,7 @@ window.executeCategoryMove = async function() {
 
         var { error } = await dbClient.from('posts').update({ 
             type: newType, 
-            content: content,
-            game_version: newVersion
+            content: content
         }).eq('id', postId);
         
         if(error) alert('이동 실패: ' + error.message);
