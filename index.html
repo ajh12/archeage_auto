@@ -646,6 +646,39 @@
         </div>
     </div>
 
+    <div id="moveCategoryModal" class="fixed inset-0 z-[130] hidden" onclick="closeMoveCategoryModal()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white dark:bg-black dark:border dark:border-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
+                <h3 class="font-bold text-lg mb-4 text-slate-800 dark:text-white">카테고리 이동</h3>
+                
+                <div class="text-left mb-4">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">이동할 게시판</label>
+                    <input type="text" id="moveTargetCategoryName" class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 font-bold" disabled>
+                </div>
+
+                <div class="text-left mb-6" id="moveVersionContainer">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">버전 태그 선택</label>
+                    <div class="relative">
+                        <select id="moveVersionSelect" class="w-full bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 outline-none focus:border-blue-500 appearance-none">
+                            <option value="common">공통</option>
+                            <option value="1.2">1.2 버전</option>
+                            <option value="5.0">5.0 버전</option>
+                        </select>
+                        <div class="absolute right-3 top-2.5 pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="closeMoveCategoryModal()" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">취소</button>
+                    <button onclick="executeCategoryMove()" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg shadow-blue-500/30">이동</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer id="main-footer" class="bg-white dark:bg-black border-t border-slate-100 dark:border-slate-800 py-10 mt-auto text-center relative">
         <div class="flex justify-center space-x-6 mb-4">
             <a href="https://github.com/Pretsg/Archeage_auto/releases" target="_blank" class="text-slate-400 hover:text-black dark:hover:text-white text-2xl transition"><i class="fa-brands fa-github"></i></a>
