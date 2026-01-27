@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko" class="scroll-smooth">
 <head>
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EJSWMN95G3"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -20,6 +27,18 @@
     <title>하포카 해결소</title>
     
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#121212', 
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -30,17 +49,17 @@
     
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-100 selection:text-blue-700" ondragstart="return false">
+<body class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-200 antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-100 selection:text-blue-700 dark:selection:bg-blue-900 dark:selection:text-blue-200" ondragstart="return false">
 
     <div id="snow-container"></div>
 
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
+    <div class="blob blob-1 dark:opacity-20"></div>
+    <div class="blob blob-2 dark:opacity-20"></div>
 
-    <div id="global-loader" class="loading-overlay hidden">
+    <div id="global-loader" class="loading-overlay hidden dark:bg-black/80">
         <div class="text-center">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-4"></i>
-            <p class="text-slate-600 font-bold animate-pulse">잠시만 기다려주세요...</p>
+            <p class="text-slate-600 dark:text-slate-300 font-bold animate-pulse">잠시만 기다려주세요...</p>
         </div>
     </div>
 
@@ -48,23 +67,23 @@
         <img id="lightbox-img" src="" alt="Full View">
     </div>
 
-    <nav class="sticky top-0 z-50 glass-nav shadow-sm">
+    <nav class="sticky top-0 z-50 glass-nav shadow-sm dark:bg-black/90 dark:border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 md:h-20">
                 <div class="flex items-center cursor-pointer group" onclick="confirmNavigation('home')">
                     <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20 group-hover:scale-105 transition">
                         <i class="fa-solid fa-cube text-white text-lg"></i>
                     </div>
-                    <span class="font-bold text-xl tracking-tight text-slate-900">하포카 해결소</span>
+                    <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">하포카 해결소</span>
                 </div>
                 
                 <div class="hidden md:flex items-center flex-grow justify-end space-x-1">
-                    <button onclick="confirmNavigation('home')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition">홈</button>
-                    <button onclick="confirmNavigation('notice')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition">공지사항</button>
-                    <button onclick="confirmNavigation('free')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition">자유대화방</button>
-                    <button onclick="confirmNavigation('list')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition">오류해결소</button>
+                    <button onclick="confirmNavigation('home')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">홈</button>
+                    <button onclick="confirmNavigation('notice')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">공지사항</button>
+                    <button onclick="confirmNavigation('free')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">자유대화방</button>
+                    <button onclick="confirmNavigation('list')" class="px-3 py-2 rounded-full text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">오류해결소</button>
                     
-                    <button id="btn-admin-dash" onclick="confirmNavigation('admin')" class="hidden px-3 py-2 rounded-full text-sm font-bold text-red-500 hover:bg-red-50 transition"><i class="fa-solid fa-chart-line mr-1"></i></button>
+                    <button id="btn-admin-dash" onclick="confirmNavigation('admin')" class="hidden px-3 py-2 rounded-full text-sm font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition"><i class="fa-solid fa-chart-line mr-1"></i></button>
                     
                     <button onclick="openCategoryModal()" class="ml-2 px-5 py-2.5 rounded-full text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/30 transition transform hover:-translate-y-0.5 flex items-center">
                         <i class="fa-solid fa-pen-nib mr-2"></i> 글쓰기
@@ -73,60 +92,69 @@
                         <i class="fa-solid fa-user-shield"></i> 관리자
                     </button>
 
-                    <div class="flex items-center ml-4 pl-4 border-l border-slate-200 gap-2">
+                    <div class="flex items-center ml-4 pl-4 border-l border-slate-200 dark:border-slate-800 gap-2">
+                        <button onclick="toggleTheme()" id="theme-toggle-btn" class="p-2 rounded-full text-slate-400 hover:text-yellow-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-moon dark:hidden"></i>
+                            <i class="fa-solid fa-sun hidden dark:inline-block"></i>
+                        </button>
+
                         <div class="relative z-50">
                             <input type="hidden" id="searchTypeSelect" value="all">
-                            <button onclick="toggleSearchDropdown('desktop')" id="btn-search-type-desktop" class="flex items-center gap-2 pl-4 pr-3 py-1.5 rounded-full bg-slate-100 border border-transparent text-sm font-bold text-slate-600 hover:bg-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-100 transition outline-none">
+                            <button onclick="toggleSearchDropdown('desktop')" id="btn-search-type-desktop" class="flex items-center gap-2 pl-4 pr-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 focus:bg-white dark:focus:bg-black focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition outline-none">
                                 <span id="txt-search-type-desktop">전체</span>
                                 <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
                             </button>
                             
-                            <div id="menu-search-type-desktop" class="hidden absolute left-0 top-full mt-2 w-28 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal origin-top-left p-1">
-                                <button onclick="selectSearchType('all', '전체')" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition">전체</button>
-                                <button onclick="selectSearchType('nickname', '닉네임')" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition">닉네임</button>
+                            <div id="menu-search-type-desktop" class="hidden absolute left-0 top-full mt-2 w-28 bg-white dark:bg-black rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-modal origin-top-left p-1">
+                                <button onclick="selectSearchType('all', '전체')" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-xl transition">전체</button>
+                                <button onclick="selectSearchType('nickname', '닉네임')" class="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-xl transition">닉네임</button>
                             </div>
                         </div>
                         
                         <div class="relative">
-                            <input type="text" id="globalSearchInput" onkeyup="if(event.key==='Enter') searchGlobal(this.value)" class="pl-4 pr-9 py-1.5 rounded-full bg-slate-100 border border-transparent text-sm focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none w-36 focus:w-56 transition-all placeholder-slate-400" placeholder="검색">
-                            <button onclick="searchGlobal()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-600 transition"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            <input type="text" id="globalSearchInput" onkeyup="if(event.key==='Enter') searchGlobal(this.value)" class="pl-4 pr-9 py-1.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-transparent dark:border-slate-800 text-sm focus:bg-white dark:focus:bg-black focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 focus:border-blue-400 outline-none w-36 focus:w-56 transition-all placeholder-slate-400 dark:text-slate-200" placeholder="검색">
+                            <button onclick="searchGlobal()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </div>
                 </div>
                 
-                <div class="flex md:hidden">
-                    <button onclick="toggleMobileMenu()" class="text-slate-600 p-2"><i class="fa-solid fa-bars text-2xl"></i></button>
+                <div class="flex md:hidden items-center gap-2">
+                    <button onclick="toggleTheme()" class="p-2 rounded-full text-slate-400 hover:text-yellow-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                         <i class="fa-solid fa-moon dark:hidden"></i>
+                         <i class="fa-solid fa-sun hidden dark:inline-block"></i>
+                    </button>
+                    <button onclick="toggleMobileMenu()" class="text-slate-600 dark:text-slate-300 p-2"><i class="fa-solid fa-bars text-2xl"></i></button>
                 </div>
             </div>
         </div>
         
-        <div id="mobile-menu" class="hidden md:hidden bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-lg">
+        <div id="mobile-menu" class="hidden md:hidden bg-white/95 dark:bg-black/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-lg">
             <div class="px-4 pt-2 pb-6 space-y-2">
                 <div class="relative mb-4 mt-2 flex gap-2">
                     <div class="relative z-40">
                         <input type="hidden" id="mobileSearchTypeSelect" value="all">
-                        <button onclick="toggleSearchDropdown('mobile')" id="btn-search-type-mobile" class="h-10 flex items-center gap-2 px-3 bg-slate-100 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-white transition whitespace-nowrap outline-none">
+                        <button onclick="toggleSearchDropdown('mobile')" id="btn-search-type-mobile" class="h-10 flex items-center gap-2 px-3 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-black transition whitespace-nowrap outline-none">
                             <span id="txt-search-type-mobile">전체</span>
                             <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
                         </button>
                         
-                        <div id="menu-search-type-mobile" class="hidden absolute left-0 top-full mt-2 w-32 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-modal p-1 origin-top-left">
-                            <button onclick="selectSearchType('all', '전체')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition">전체</button>
-                            <button onclick="selectSearchType('nickname', '닉네임')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition">닉네임</button>
+                        <div id="menu-search-type-mobile" class="hidden absolute left-0 top-full mt-2 w-32 bg-white dark:bg-black rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-modal p-1 origin-top-left">
+                            <button onclick="selectSearchType('all', '전체')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-xl transition">전체</button>
+                            <button onclick="selectSearchType('nickname', '닉네임')" class="w-full text-left px-4 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-xl transition">닉네임</button>
                         </div>
                     </div>
 
                     <div class="relative flex-grow">
-                        <input type="text" id="mobileSearchInput" onkeyup="if(event.key==='Enter') searchGlobal(this.value)" class="w-full pl-4 pr-8 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-blue-500 outline-none bg-slate-50 focus:bg-white transition" placeholder="검색어를 입력하세요">
+                        <input type="text" id="mobileSearchInput" onkeyup="if(event.key==='Enter') searchGlobal(this.value)" class="w-full pl-4 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm focus:border-blue-500 outline-none bg-slate-50 dark:bg-slate-900 focus:bg-white dark:focus:bg-black dark:text-slate-200 transition" placeholder="검색어를 입력하세요">
                         <button onclick="searchGlobal()" class="absolute right-3 top-3 text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></button>
                     </div>
                 </div>
 
-                <button onclick="confirmNavigation('home'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">🏠 홈으로</button>
-                <button onclick="confirmNavigation('notice'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">📢 공지사항</button>
-                <button onclick="confirmNavigation('free'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">💬 자유대화방</button>
-                <button onclick="confirmNavigation('list'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 hover:bg-slate-50">🛠️ 오류해결소</button>
-                <button id="btn-admin-dash-m" onclick="confirmNavigation('admin'); toggleMobileMenu()" class="hidden block w-full text-left px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50">📊 관리자 대시보드</button>
+                <button onclick="confirmNavigation('home'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">🏠 홈으로</button>
+                <button onclick="confirmNavigation('notice'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">📢 공지사항</button>
+                <button onclick="confirmNavigation('free'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">💬 자유대화방</button>
+                <button onclick="confirmNavigation('list'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">🛠️ 오류해결소</button>
+                <button id="btn-admin-dash-m" onclick="confirmNavigation('admin'); toggleMobileMenu()" class="hidden block w-full text-left px-4 py-3 rounded-xl font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">📊 관리자 대시보드</button>
                 
                 <button onclick="openCategoryModal(); toggleMobileMenu()" class="block w-full text-left px-4 py-3 rounded-xl font-bold text-white bg-blue-600 mt-4">✍️ 글쓰기</button>
                 <button id="mobileAdminBadge" onclick="adminLogout()" class="hidden w-full text-left px-4 py-3 rounded-xl font-bold text-slate-800 bg-slate-200 mt-2">
@@ -139,20 +167,20 @@
     <main id="view-home" class="view-section hidden flex-grow">
         <section class="relative pt-16 pb-20 text-center px-4 md:pt-24">
             <div class="max-w-4xl mx-auto mb-16">
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-sm font-bold mb-6">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-bold mb-6">
                     <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                     <span id="version-text">v0.1 업데이트 확인 중...</span>
                 </div>
-                <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 mb-6 leading-tight">
-                    서버 구축, <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">한방에 해결하세요.</span>
+                <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white mb-6 leading-tight">
+                    서버 구축, <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">한방에 해결하세요.</span>
                 </h1>
-                <p class="text-lg text-slate-500 max-w-2xl mx-auto">
+                <p class="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
                     자동 구축 프로그램으로 쉽게 구축하고,<br>
                     오류해결소에서 쉽게 해결하세요.
                 </p>
                 <div class="mt-8 flex justify-center gap-4">
-                    <button onclick="openCategoryModal()" class="px-6 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-900/20">질문하기</button>
-                    <button onclick="goDownload()" class="px-6 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition shadow-sm">다운로드</button>
+                    <button onclick="openCategoryModal()" class="px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition shadow-lg shadow-slate-900/20">질문하기</button>
+                    <button onclick="goDownload()" class="px-6 py-3 rounded-xl bg-white dark:bg-black border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm">다운로드</button>
                 </div>
             </div>
             
@@ -192,50 +220,50 @@
         </section>
     </main>
 
-    <main id="view-admin" class="view-section hidden flex-grow py-12 px-4 bg-slate-50">
+    <main id="view-admin" class="view-section hidden flex-grow py-12 px-4 bg-slate-50 dark:bg-black">
         <div class="max-w-7xl mx-auto">
-            <h2 class="text-3xl font-bold text-slate-900 mb-6">📊 관리자 대시보드</h2>
+            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6">📊 관리자 대시보드</h2>
             
-            <div class="flex gap-2 mb-8 border-b border-slate-200 pb-1 overflow-x-auto">
-                <button onclick="switchAdminTab('dashboard')" id="tab-admin-dashboard" class="px-4 py-2 font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 rounded-t-lg transition whitespace-nowrap">
+            <div class="flex gap-2 mb-8 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto">
+                <button onclick="switchAdminTab('dashboard')" id="tab-admin-dashboard" class="px-4 py-2 font-bold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20 rounded-t-lg transition whitespace-nowrap">
                     <i class="fa-solid fa-chart-pie mr-2"></i>대시보드
                 </button>
-                <button onclick="switchAdminTab('reported')" id="tab-admin-reported" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
+                <button onclick="switchAdminTab('reported')" id="tab-admin-reported" class="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap">
                     <i class="fa-solid fa-triangle-exclamation mr-2"></i>신고 관리
                 </button>
-                <button onclick="switchAdminTab('deleted-posts')" id="tab-admin-deleted-posts" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
+                <button onclick="switchAdminTab('deleted-posts')" id="tab-admin-deleted-posts" class="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap">
                     <i class="fa-solid fa-trash-can mr-2"></i>삭제된 글 (휴지통)
                 </button>
-                <button onclick="switchAdminTab('deleted-comments')" id="tab-admin-deleted-comments" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
+                <button onclick="switchAdminTab('deleted-comments')" id="tab-admin-deleted-comments" class="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap">
                     <i class="fa-solid fa-comment-slash mr-2"></i>삭제된 댓글
                 </button>
-                <button onclick="switchAdminTab('ip-search')" id="tab-admin-ip-search" class="px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap">
+                <button onclick="switchAdminTab('ip-search')" id="tab-admin-ip-search" class="px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap">
                     <i class="fa-solid fa-network-wired mr-2"></i>IP 검색
                 </button>
             </div>
 
             <div id="admin-view-dashboard" class="admin-tab-content">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div class="stat-card"><div class="text-sm text-slate-500 font-bold mb-1">오늘 방문자</div><div class="text-3xl font-extrabold text-blue-600" id="stat-today-visits">0</div></div>
-                    <div class="stat-card"><div class="text-sm text-slate-500 font-bold mb-1">어제 방문자</div><div class="text-3xl font-extrabold text-slate-500" id="stat-yesterday-visits">0</div></div>
-                    <div class="stat-card"><div class="text-sm text-slate-500 font-bold mb-1">총 게시글</div><div class="text-3xl font-extrabold text-slate-800" id="stat-total-posts">0</div></div>
-                    <div class="stat-card"><div class="text-sm text-slate-500 font-bold mb-1">차단된 IP</div><div class="text-3xl font-extrabold text-red-500" id="stat-banned-count">0</div></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><div class="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">오늘 방문자</div><div class="text-3xl font-extrabold text-blue-600 dark:text-blue-400" id="stat-today-visits">0</div></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><div class="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">어제 방문자</div><div class="text-3xl font-extrabold text-slate-500 dark:text-slate-400" id="stat-yesterday-visits">0</div></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><div class="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">총 게시글</div><div class="text-3xl font-extrabold text-slate-800 dark:text-slate-200" id="stat-total-posts">0</div></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><div class="text-sm text-slate-500 dark:text-slate-400 font-bold mb-1">차단된 IP</div><div class="text-3xl font-extrabold text-red-500" id="stat-banned-count">0</div></div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="stat-card"><h3 class="text-lg font-bold mb-4">📈 주간 방문자 추이</h3><div class="h-64"><canvas id="visitorChart"></canvas></div></div>
-                    <div class="stat-card"><h3 class="text-lg font-bold mb-4">📝 최근 올라온 글 (공지 제외)</h3><ul id="recent-posts-admin" class="text-sm space-y-2 text-slate-600 h-64 overflow-y-auto"></ul></div>
-                    <div class="stat-card col-span-1 lg:col-span-2"><h3 class="text-lg font-bold mb-4 text-red-600">🚫 차단 관리</h3><div class="flex gap-2 mb-4"><input type="text" id="banInput" class="flex-grow border border-slate-300 rounded px-3 py-2 text-sm" placeholder="차단할 IP 입력" autocomplete="off"><button onclick="addBan()" class="bg-red-500 text-white px-4 py-2 rounded text-sm font-bold">추가</button></div><ul id="banList" class="bg-slate-50 rounded border border-slate-200 p-2 h-48 overflow-y-auto text-sm space-y-2"></ul></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><h3 class="text-lg font-bold mb-4 dark:text-slate-200">📈 주간 방문자 추이</h3><div class="h-64"><canvas id="visitorChart"></canvas></div></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800"><h3 class="text-lg font-bold mb-4 dark:text-slate-200">📝 최근 올라온 글 (공지 제외)</h3><ul id="recent-posts-admin" class="text-sm space-y-2 text-slate-600 dark:text-slate-400 h-64 overflow-y-auto"></ul></div>
+                    <div class="stat-card dark:bg-black dark:border-slate-800 col-span-1 lg:col-span-2"><h3 class="text-lg font-bold mb-4 text-red-600">🚫 차단 관리</h3><div class="flex gap-2 mb-4"><input type="text" id="banInput" class="flex-grow border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm outline-none" placeholder="차단할 IP 입력" autocomplete="off"><button onclick="addBan()" class="bg-red-500 text-white px-4 py-2 rounded text-sm font-bold">추가</button></div><ul id="banList" class="bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800 p-2 h-48 overflow-y-auto text-sm space-y-2"></ul></div>
                 </div>
             </div>
 
             <div id="admin-view-reported" class="admin-tab-content hidden">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
                         <h3 class="font-bold text-lg text-red-600 mb-4"><i class="fa-solid fa-file-circle-exclamation mr-2"></i>신고된 게시글 (5회 이상)</h3>
                         <div id="reported-posts-list" class="space-y-3"></div>
                         <div id="no-reported-posts" class="text-center text-slate-400 text-sm py-10">신고된 게시글이 없습니다.</div>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
                         <h3 class="font-bold text-lg text-red-600 mb-4"><i class="fa-solid fa-comment-slash mr-2"></i>신고된 댓글 (5회 이상)</h3>
                         <div id="reported-comments-list" class="space-y-3"></div>
                         <div id="no-reported-comments" class="text-center text-slate-400 text-sm py-10">신고된 댓글이 없습니다.</div>
@@ -244,16 +272,16 @@
             </div>
 
             <div id="admin-view-deleted-posts" class="admin-tab-content hidden">
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6">
                     <div class="flex">
                         <div class="flex-shrink-0"><i class="fa-solid fa-triangle-exclamation text-yellow-400"></i></div>
-                        <div class="ml-3"><p class="text-sm text-yellow-700">삭제된 지 30일이 지난 게시물은 자동으로 영구 삭제됩니다.</p></div>
+                        <div class="ml-3"><p class="text-sm text-yellow-700 dark:text-yellow-400">삭제된 지 30일이 지난 게시물은 자동으로 영구 삭제됩니다.</p></div>
                     </div>
                 </div>
                 
                 <div class="flex justify-between items-center mb-4 px-1">
-                    <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-600">
-                        <input type="checkbox" id="chk-all-posts" class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300" onchange="toggleSelectAll('post', this.checked)">
+                    <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-600 dark:text-slate-400">
+                        <input type="checkbox" id="chk-all-posts" class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 dark:bg-slate-800" onchange="toggleSelectAll('post', this.checked)">
                         전체 선택
                     </label>
                     <button onclick="deleteSelected('post')" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition shadow-sm">
@@ -267,16 +295,16 @@
             </div>
 
             <div id="admin-view-deleted-comments" class="admin-tab-content hidden">
-                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 mb-6">
                     <div class="flex">
                         <div class="flex-shrink-0"><i class="fa-solid fa-triangle-exclamation text-yellow-400"></i></div>
-                        <div class="ml-3"><p class="text-sm text-yellow-700">삭제된 지 30일이 지난 댓글은 자동으로 영구 삭제됩니다.</p></div>
+                        <div class="ml-3"><p class="text-sm text-yellow-700 dark:text-yellow-400">삭제된 지 30일이 지난 댓글은 자동으로 영구 삭제됩니다.</p></div>
                     </div>
                 </div>
 
                 <div class="flex justify-between items-center mb-4 px-1">
-                    <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-600">
-                        <input type="checkbox" id="chk-all-comments" class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300" onchange="toggleSelectAll('comment', this.checked)">
+                    <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-600 dark:text-slate-400">
+                        <input type="checkbox" id="chk-all-comments" class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 dark:bg-slate-800" onchange="toggleSelectAll('comment', this.checked)">
                         전체 선택
                     </label>
                     <button onclick="deleteSelected('comment')" class="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition shadow-sm">
@@ -290,10 +318,10 @@
             </div>
 
             <div id="admin-view-ip-search" class="admin-tab-content hidden">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6">
-                    <h3 class="font-bold text-lg text-slate-800 mb-4">IP로 작성글/댓글 검색</h3>
+                <div class="bg-white dark:bg-black p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6">
+                    <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-4">IP로 작성글/댓글 검색</h3>
                     <div class="flex gap-2">
-                        <input type="text" id="adminIpSearchInput" class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500" placeholder="IP 주소를 입력하세요 (예: 1.2.3.4)" onkeyup="if(event.key==='Enter') adminSearchByIp()">
+                        <input type="text" id="adminIpSearchInput" class="flex-grow bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500" placeholder="IP 주소를 입력하세요 (예: 1.2.3.4)" onkeyup="if(event.key==='Enter') adminSearchByIp()">
                         <button onclick="adminSearchByIp()" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-500 transition">검색</button>
                     </div>
                 </div>
@@ -303,20 +331,20 @@
         </div>
     </main>
 
-    <main id="view-board" class="view-section hidden flex-grow py-12 px-4 bg-slate-50">
+    <main id="view-board" class="view-section hidden flex-grow py-12 px-4 bg-slate-50 dark:bg-black">
         <div class="max-w-7xl mx-auto">
             <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
-                <div><h2 id="board-title" class="text-3xl font-bold text-slate-900">게시판</h2><p id="board-desc" class="text-slate-500 mt-2">설명</p></div>
+                <div><h2 id="board-title" class="text-3xl font-bold text-slate-900 dark:text-white">게시판</h2><p id="board-desc" class="text-slate-500 dark:text-slate-400 mt-2">설명</p></div>
                 <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                     <div class="relative w-full md:w-64">
-                        <input type="text" id="boardSearchInput" onkeyup="if(event.key==='Enter') searchBoard()" class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition bg-white shadow-sm" placeholder="이 게시판 내 검색...">
-                        <button onclick="searchBoard()" class="absolute right-2 top-1.5 p-1.5 text-slate-400 hover:text-blue-600 outline-none transition rounded-full hover:bg-slate-100">
+                        <input type="text" id="boardSearchInput" onkeyup="if(event.key==='Enter') searchBoard()" class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-black dark:text-slate-200 focus:outline-none focus:border-blue-500 transition bg-white shadow-sm" placeholder="이 게시판 내 검색...">
+                        <button onclick="searchBoard()" class="absolute right-2 top-1.5 p-1.5 text-slate-400 hover:text-blue-600 outline-none transition rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </button>
                     </div>
-                    <div id="view-toggles" class="bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex hidden">
-                        <button onclick="toggleViewMode('grid')" id="btn-grid" class="p-2 px-3 rounded-lg text-sm font-bold bg-slate-100 text-slate-800 transition"><i class="fa-solid fa-grip mr-1"></i></button>
-                        <button onclick="toggleViewMode('list')" id="btn-list" class="p-2 px-3 rounded-lg text-sm font-bold text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-list mr-1"></i></button>
+                    <div id="view-toggles" class="bg-white dark:bg-black p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex hidden">
+                        <button onclick="toggleViewMode('grid')" id="btn-grid" class="p-2 px-3 rounded-lg text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 transition"><i class="fa-solid fa-grip mr-1"></i></button>
+                        <button onclick="toggleViewMode('list')" id="btn-list" class="p-2 px-3 rounded-lg text-sm font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition"><i class="fa-solid fa-list mr-1"></i></button>
                     </div>
                     <button id="btn-write-board" onclick="writePost(currentBoardType)" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-500 shadow whitespace-nowrap">글쓰기</button>
                 </div>
@@ -329,89 +357,89 @@
         </div>
     </main>
 
-    <main id="view-search" class="view-section hidden flex-grow py-12 px-4 bg-slate-50">
+    <main id="view-search" class="view-section hidden flex-grow py-12 px-4 bg-slate-50 dark:bg-black">
         <div class="max-w-7xl mx-auto">
-            <h2 class="text-3xl font-bold text-slate-900 mb-6">🔍 통합 검색 결과</h2>
-            <p id="search-keyword-display" class="text-slate-500 mb-8">검색어: <span class="font-bold text-blue-600"></span></p>
+            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-6">🔍 통합 검색 결과</h2>
+            <p id="search-keyword-display" class="text-slate-500 dark:text-slate-400 mb-8">검색어: <span class="font-bold text-blue-600 dark:text-blue-400"></span></p>
             <div id="search-results-container" class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3"></div>
             <div id="search-no-result" class="hidden text-center py-20 text-slate-400 text-lg"><i class="fa-regular fa-face-frown text-4xl mb-4 block"></i>검색 결과가 없습니다.</div>
         </div>
     </main>
 
-    <main id="view-detail" class="view-section hidden flex-grow bg-white py-12 px-4">
+    <main id="view-detail" class="view-section hidden flex-grow bg-white dark:bg-black py-12 px-4">
         <div class="max-w-4xl mx-auto">
-            <div class="mb-6"><button onclick="confirmNavigation(lastPage)" class="text-slate-500 hover:text-blue-600 font-bold flex items-center"><i class="fa-solid fa-arrow-left mr-2"></i> 목록으로 돌아가기</button></div>
-            <div class="border-b border-slate-200 pb-6 mb-8">
+            <div class="mb-6"><button onclick="confirmNavigation(lastPage)" class="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-bold flex items-center"><i class="fa-solid fa-arrow-left mr-2"></i> 목록으로 돌아가기</button></div>
+            <div class="border-b border-slate-200 dark:border-slate-800 pb-6 mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2"><span id="detail-badge" class="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded font-bold">카테고리</span><span id="detail-date" class="text-slate-400 text-sm">Date</span></div>
+                    <div class="flex items-center gap-2"><span id="detail-badge" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-1 rounded font-bold">카테고리</span><span id="detail-date" class="text-slate-400 text-sm">Date</span></div>
                     <div id="admin-controls" class="hidden flex gap-2">
-                        <button onclick="togglePinPost()" id="btn-pin-post" class="text-xs font-bold text-slate-400 hover:text-yellow-500 border border-slate-200 px-2 py-1 rounded"><i class="fa-solid fa-thumbtack"></i> 고정 토글</button>
-                        <select id="move-category-select" onchange="movePostCategory(this.value)" class="text-xs border border-slate-200 rounded px-2 py-1 outline-none"><option value="">카테고리 이동</option><option value="free">자유대화방</option><option value="error">오류해결소</option><option value="notice">공지사항</option></select>
+                        <button onclick="togglePinPost()" id="btn-pin-post" class="text-xs font-bold text-slate-400 hover:text-yellow-500 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded"><i class="fa-solid fa-thumbtack"></i> 고정 토글</button>
+                        <select id="move-category-select" onchange="movePostCategory(this.value)" class="text-xs border border-slate-200 dark:border-slate-800 dark:bg-black dark:text-slate-200 rounded px-2 py-1 outline-none"><option value="">카테고리 이동</option><option value="free">자유대화방</option><option value="error">오류해결소</option><option value="notice">공지사항</option></select>
                     </div>
                 </div>
-                <h1 id="detail-title" class="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">Title</h1>
-                <div class="flex justify-between items-center text-sm text-slate-500">
+                <h1 id="detail-title" class="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-slate-100 mb-4">Title</h1>
+                <div class="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
                     <div class="flex items-center gap-4">
-                        <span id="detail-author" class="font-bold text-slate-700">Author</span>
+                        <span id="detail-author" class="font-bold text-slate-700 dark:text-slate-300">Author</span>
                         <span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> <span id="detail-views">0</span></span>
                     </div>
                     <div class="flex gap-3 items-center">
                         <button onclick="reportCurrentPost()" class="text-red-400 hover:text-red-600 text-sm font-bold flex items-center gap-1"><i class="fa-solid fa-land-mine-on"></i> 신고</button>
-                        <button id="btn-edit-post" class="text-slate-400 hover:text-blue-600 text-sm font-bold hidden"><i class="fa-solid fa-pen mr-1"></i> 수정</button>
+                        <button id="btn-edit-post" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-sm font-bold hidden"><i class="fa-solid fa-pen mr-1"></i> 수정</button>
                         <button id="btn-force-delete" class="text-slate-400 hover:text-red-600 text-sm font-bold hidden"><i class="fa-solid fa-trash mr-1"></i> 삭제</button>
                     </div>
                 </div>
             </div>
             
-            <div id="detail-content" class="prose max-w-none mb-12 text-slate-800 leading-relaxed min-h-[200px]"></div>
+            <div id="detail-content" class="prose dark:prose-invert max-w-none mb-12 text-slate-800 dark:text-slate-300 leading-relaxed min-h-[200px]"></div>
             
             <div class="flex justify-center mb-12">
-                <button id="btn-like" onclick="toggleLike()" class="group relative px-8 py-4 bg-white border-2 border-slate-100 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:border-red-200 hover:shadow-red-100 hover:shadow-lg hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
-                    <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                <button id="btn-like" onclick="toggleLike()" class="group relative px-8 py-4 bg-white dark:bg-black border-2 border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm flex items-center gap-4 transition-all hover:border-red-200 hover:shadow-red-100 hover:shadow-lg hover:-translate-y-1 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <div class="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center group-hover:bg-red-50 dark:group-hover:bg-red-900/20 transition-colors">
                         <i id="like-icon" class="fa-solid fa-heart text-2xl text-slate-300 group-hover:text-red-500 transition-colors duration-300"></i>
                     </div>
                     <div class="flex flex-col items-start">
-                        <span class="text-xs font-bold text-slate-400 group-hover:text-slate-600 transition-colors">도움이 되었나요?</span>
+                        <span class="text-xs font-bold text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">도움이 되었나요?</span>
                         <div class="flex items-center gap-1">
-                            <span class="text-lg font-extrabold text-slate-700">좋아요</span>
-                            <span id="like-count" class="text-lg font-extrabold text-slate-700 group-hover:text-red-500 transition-colors ml-1">0</span>
+                            <span class="text-lg font-extrabold text-slate-700 dark:text-slate-200">좋아요</span>
+                            <span id="like-count" class="text-lg font-extrabold text-slate-700 dark:text-slate-200 group-hover:text-red-500 transition-colors ml-1">0</span>
                         </div>
                     </div>
                 </button>
             </div>
 
-            <div class="bg-slate-50 rounded-2xl p-6 md:p-8 border border-slate-100">
-                <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center"><i class="fa-regular fa-comments mr-2"></i> 댓글 <span id="detail-comments-count" class="text-blue-600 ml-1">0</span></h3>
+            <div class="bg-slate-50 dark:bg-black rounded-2xl p-6 md:p-8 border border-slate-100 dark:border-slate-800">
+                <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-6 flex items-center"><i class="fa-regular fa-comments mr-2"></i> 댓글 <span id="detail-comments-count" class="text-blue-600 dark:text-blue-400 ml-1">0</span></h3>
                 <div id="comment-list" class="space-y-6 mb-8"></div>
                 
-                <div id="comment-write-area" class="border-t border-slate-200 pt-6">
-                    <div id="reply-target-box" class="hidden mb-3 bg-blue-50 border border-blue-100 px-4 py-3 rounded-xl flex justify-between items-center shadow-sm">
-                        <div class="flex items-center gap-2 text-blue-700 text-sm font-bold">
+                <div id="comment-write-area" class="border-t border-slate-200 dark:border-slate-800 pt-6">
+                    <div id="reply-target-box" class="hidden mb-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-4 py-3 rounded-xl flex justify-between items-center shadow-sm">
+                        <div class="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-sm font-bold">
                             <i class="fa-solid fa-share fa-flip-vertical"></i>
                             <span id="reply-target-msg"></span>
                             <span class="text-blue-400 text-xs font-normal ml-1">에게 답글 작성 중</span>
                         </div>
-                        <button onclick="cancelReply()" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 transition"><i class="fa-solid fa-xmark"></i></button>
+                        <button onclick="cancelReply()" class="text-slate-400 hover:text-red-500 w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition"><i class="fa-solid fa-xmark"></i></button>
                     </div>
 
                     <div class="flex flex-col md:flex-row gap-3 mb-3">
-                        <input type="text" id="cmtName" maxlength="12" class="w-full md:w-40 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="닉네임" autocomplete="off">
-                        <input type="password" id="cmtPw" maxlength="10" class="w-full md:w-32 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none" placeholder="비밀번호" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
-                        <button id="btn-cmt-cancel" onclick="cancelCommentEdit()" class="hidden px-4 py-2 bg-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-300">수정 취소</button>
+                        <input type="text" id="cmtName" maxlength="12" class="w-full md:w-40 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 focus:border-blue-500 outline-none" placeholder="닉네임" autocomplete="off">
+                        <input type="password" id="cmtPw" maxlength="10" class="w-full md:w-32 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-slate-200 focus:border-blue-500 outline-none" placeholder="비밀번호" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                        <button id="btn-cmt-cancel" onclick="cancelCommentEdit()" class="hidden px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700">수정 취소</button>
                     </div>
                     
-                    <div id="cmt-drop-zone" class="border border-slate-200 rounded-xl bg-white overflow-hidden focus-within:border-blue-500 transition shadow-sm relative">
-                        <div id="drop-zone-overlay" class="absolute inset-0 bg-blue-50/90 z-20 hidden flex flex-col items-center justify-center text-blue-600 font-bold pointer-events-none backdrop-blur-sm">
+                    <div id="cmt-drop-zone" class="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-black overflow-hidden focus-within:border-blue-500 transition shadow-sm relative">
+                        <div id="drop-zone-overlay" class="absolute inset-0 bg-blue-50/90 dark:bg-blue-900/80 z-20 hidden flex flex-col items-center justify-center text-blue-600 dark:text-blue-300 font-bold pointer-events-none backdrop-blur-sm">
                             <i class="fa-solid fa-cloud-arrow-up text-4xl mb-3 animate-bounce"></i>
                             <span class="text-lg">이미지를 놓아서 첨부하기</span>
                         </div>
                         
-                        <textarea id="cmtContent" rows="3" class="w-full p-4 text-sm outline-none resize-none" placeholder="댓글을 남겨주세요..."></textarea>
+                        <textarea id="cmtContent" rows="3" class="w-full p-4 text-sm outline-none resize-none bg-white dark:bg-black text-slate-900 dark:text-slate-200" placeholder="댓글을 남겨주세요..."></textarea>
                         
                         <div id="cmtImagePreview" class="cmt-preview-container hidden"></div>
 
-                        <div class="flex justify-between items-center bg-slate-50 px-4 py-2 border-t border-slate-100">
-                            <label for="commentImgInput" class="text-slate-400 hover:text-blue-600 cursor-pointer text-lg p-1 rounded-md hover:bg-slate-200 transition" title="사진 첨부 (다중 가능)">
+                        <div class="flex justify-between items-center bg-slate-50 dark:bg-black px-4 py-2 border-t border-slate-100 dark:border-slate-800">
+                            <label for="commentImgInput" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer text-lg p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="사진 첨부 (다중 가능)">
                                 <i class="fa-regular fa-image"></i>
                                 <input type="file" id="commentImgInput" class="hidden" accept="image/*" multiple onchange="uploadCommentImage(this)">
                             </label>
@@ -423,110 +451,110 @@
         </div>
     </main>
 
-    <main id="view-write" class="view-section hidden flex-grow bg-white">
+    <main id="view-write" class="view-section hidden flex-grow bg-white dark:bg-black">
         <div class="max-w-6xl mx-auto py-12 px-4 md:px-8">
-            <div class="flex justify-between items-center mb-8 pb-4 border-b border-slate-100">
-                <h2 id="write-header" class="text-2xl font-bold text-slate-800">새로운 글 작성</h2>
-                <button onclick="confirmNavigation(lastPage)" class="text-slate-400 hover:text-slate-600 text-sm font-bold flex items-center"><i class="fa-solid fa-arrow-left mr-2"></i> 취소</button>
+            <div class="flex justify-between items-center mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <h2 id="write-header" class="text-2xl font-bold text-slate-800 dark:text-slate-200">새로운 글 작성</h2>
+                <button onclick="confirmNavigation(lastPage)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-bold flex items-center"><i class="fa-solid fa-arrow-left mr-2"></i> 취소</button>
             </div>
             <div class="space-y-6">
                 <div id="admin-write-options" class="hidden flex items-center gap-2 mb-2">
-                    <input type="checkbox" id="checkPinned" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300">
-                    <label for="checkPinned" class="text-sm font-bold text-slate-700">📌 이 글을 상단에 고정 (강조)</label>
+                    <input type="checkbox" id="checkPinned" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300 dark:border-slate-600 dark:bg-slate-800">
+                    <label for="checkPinned" class="text-sm font-bold text-slate-700 dark:text-slate-300">📌 이 글을 상단에 고정 (강조)</label>
                 </div>
 
-                <div id="version-select-container" class="hidden flex items-center gap-4 mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <span class="text-sm font-bold text-slate-600">버전 선택:</span>
+                <div id="version-select-container" class="hidden flex items-center gap-4 mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span class="text-sm font-bold text-slate-600 dark:text-slate-400">버전 선택:</span>
                     <div class="relative z-40">
                         <input type="hidden" id="selectedGameVersion" value="">
-                        <button onclick="toggleVersionDropdown()" id="btn-version-select" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm font-bold text-slate-600 hover:border-blue-400 hover:text-blue-600 transition outline-none shadow-sm min-w-[120px] justify-between">
+                        <button onclick="toggleVersionDropdown()" id="btn-version-select" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-black border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-300 hover:border-blue-400 hover:text-blue-600 transition outline-none shadow-sm min-w-[120px] justify-between">
                             <span id="txt-version-select">선택안함</span>
                             <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
                         </button>
-                        <div id="menu-version-select" class="hidden absolute left-0 top-full mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-modal p-1 origin-top-left">
-                            <button onclick="selectVersion('1.2', '1.2 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">1.2 버전</button>
-                            <button onclick="selectVersion('5.0', '5.0 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition">5.0 버전</button>
-                            <button onclick="selectVersion('common', '공통')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-green-50 hover:text-green-600 rounded-lg transition">공통</button>
+                        <div id="menu-version-select" class="hidden absolute left-0 top-full mt-2 w-32 bg-white dark:bg-black rounded-xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-modal p-1 origin-top-left">
+                            <button onclick="selectVersion('1.2', '1.2 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-lg transition">1.2 버전</button>
+                            <button onclick="selectVersion('5.0', '5.0 버전')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 rounded-lg transition">5.0 버전</button>
+                            <button onclick="selectVersion('common', '공통')" class="w-full text-left px-3 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 rounded-lg transition">공통</button>
                         </div>
                     </div>
                 </div>
 
-                <input type="text" id="inputTitle" maxlength="40" class="w-full text-3xl font-extrabold text-slate-900 placeholder-slate-300 outline-none border-b border-transparent focus:border-blue-200 pb-2" placeholder="제목을 입력하세요" autocomplete="off">
+                <input type="text" id="inputTitle" maxlength="40" class="w-full text-3xl font-extrabold text-slate-900 dark:text-slate-100 placeholder-slate-300 dark:placeholder-slate-600 bg-transparent outline-none border-b border-transparent focus:border-blue-200 pb-2" placeholder="제목을 입력하세요" autocomplete="off">
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="flex-1">
-                        <label class="block text-xs font-bold text-slate-500 mb-1">닉네임</label>
-                        <input type="text" id="inputName" maxlength="12" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 disabled:bg-slate-100 disabled:text-slate-500" placeholder="한글/숫자" autocomplete="off">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">닉네임</label>
+                        <input type="text" id="inputName" maxlength="12" class="w-full text-base bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-blue-400 dark:focus:border-blue-600 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500 text-slate-900 dark:text-slate-200" placeholder="한글/숫자" autocomplete="off">
                     </div>
                     <div class="w-full md:w-48" id="pw-container">
-                        <label class="block text-xs font-bold text-slate-500 mb-1">비밀번호</label>
-                        <input type="password" id="inputPw" maxlength="10" class="w-full text-base bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400" placeholder="영문/숫자" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">비밀번호</label>
+                        <input type="password" id="inputPw" maxlength="10" class="w-full text-base bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 outline-none focus:border-blue-400 dark:focus:border-blue-600 text-slate-900 dark:text-slate-200" placeholder="영문/숫자" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
                     </div>
                 </div>
                 
-                <div class="editor-wrapper">
-                    <div class="flex border-b border-slate-200 bg-slate-50">
-                        <button onclick="switchEditorTab('html')" id="tab-html" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-white">HTML 편집 (기본)</button>
-                        <button onclick="switchEditorTab('markdown')" id="tab-markdown" class="flex-1 py-3 text-sm font-bold text-slate-500 hover:text-slate-700">마크다운</button>
+                <div class="editor-wrapper dark:border-slate-800 dark:bg-black">
+                    <div class="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+                        <button onclick="switchEditorTab('html')" id="tab-html" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-black">HTML 편집 (기본)</button>
+                        <button onclick="switchEditorTab('markdown')" id="tab-markdown" class="flex-1 py-3 text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">마크다운</button>
                     </div>
 
-                    <div id="html-toolbar" class="flex flex-wrap gap-1 border-b border-slate-200 bg-white p-2 text-slate-500">
+                    <div id="html-toolbar" class="flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-2 text-slate-500 dark:text-slate-400">
                         <div class="relative inline-block text-left z-30">
-                            <button type="button" onclick="toggleFontSizeDropdown()" id="btn-font-size" class="flex items-center gap-2 h-8 px-3 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-blue-300 transition outline-none">
+                            <button type="button" onclick="toggleFontSizeDropdown()" id="btn-font-size" class="flex items-center gap-2 h-8 px-3 text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-black border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 hover:border-blue-300 transition outline-none">
                                 <span id="txt-font-size">크기</span>
                                 <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
                             </button>
-                            <div id="menu-font-size" class="hidden absolute left-0 top-full mt-1 w-24 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden animate-modal origin-top-left p-1">
-                                <button type="button" onclick="applyFontSize('3', '보통')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">보통</button>
-                                <button type="button" onclick="applyFontSize('1', '작게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">작게</button>
-                                <button type="button" onclick="applyFontSize('5', '크게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">크게</button>
-                                <button type="button" onclick="applyFontSize('7', '아주 크게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition">아주 크게</button>
+                            <div id="menu-font-size" class="hidden absolute left-0 top-full mt-1 w-24 bg-white dark:bg-black rounded-xl shadow-lg border border-slate-100 dark:border-slate-800 overflow-hidden animate-modal origin-top-left p-1">
+                                <button type="button" onclick="applyFontSize('3', '보통')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-lg transition">보통</button>
+                                <button type="button" onclick="applyFontSize('1', '작게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-lg transition">작게</button>
+                                <button type="button" onclick="applyFontSize('5', '크게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-lg transition">크게</button>
+                                <button type="button" onclick="applyFontSize('7', '아주 크게')" class="w-full text-left px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-600 rounded-lg transition">아주 크게</button>
                             </div>
                         </div>
 
-                        <div class="w-px h-6 bg-slate-300 mx-1 self-center"></div>
+                        <div class="w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1 self-center"></div>
                         <button type="button" id="btn-bold" onmousedown="event.preventDefault(); execCmd('bold');" class="toolbar-btn p-2 rounded" title="굵게"><i class="fa-solid fa-bold"></i></button>
                         <button type="button" id="btn-italic" onmousedown="event.preventDefault(); execCmd('italic');" class="toolbar-btn p-2 rounded" title="기울임"><i class="fa-solid fa-italic"></i></button>
                         <button type="button" id="btn-underline" onmousedown="event.preventDefault(); execCmd('underline');" class="toolbar-btn p-2 rounded" title="밑줄"><i class="fa-solid fa-underline"></i></button>
                         <button type="button" id="btn-strikethrough" onmousedown="event.preventDefault(); execCmd('strikeThrough');" class="toolbar-btn p-2 rounded" title="취소선"><i class="fa-solid fa-strikethrough"></i></button>
-                        <div class="w-px h-6 bg-slate-300 mx-1 self-center"></div>
-                        <input type="color" onchange="execCmd('foreColor', this.value)" class="w-8 h-8 p-0 border-0 rounded cursor-pointer" title="글자색">
-                        <div class="w-px h-6 bg-slate-300 mx-1 self-center"></div>
+                        <div class="w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1 self-center"></div>
+                        <input type="color" onchange="execCmd('foreColor', this.value)" class="w-8 h-8 p-0 border-0 rounded cursor-pointer bg-transparent" title="글자색">
+                        <div class="w-px h-6 bg-slate-300 dark:bg-slate-700 mx-1 self-center"></div>
                         <button type="button" id="btn-justifyLeft" onmousedown="event.preventDefault(); execCmd('justifyLeft');" class="toolbar-btn p-2 rounded" title="왼쪽 정렬"><i class="fa-solid fa-align-left"></i></button>
                         <button type="button" id="btn-justifyCenter" onmousedown="event.preventDefault(); execCmd('justifyCenter');" class="toolbar-btn p-2 rounded" title="가운데 정렬"><i class="fa-solid fa-align-center"></i></button>
                         <button type="button" id="btn-justifyRight" onmousedown="event.preventDefault(); execCmd('justifyRight');" class="toolbar-btn p-2 rounded" title="오른쪽 정렬"><i class="fa-solid fa-align-right"></i></button>
                         
-                        <label for="inputFile" class="ml-auto p-2 px-3 rounded bg-white border border-slate-200 hover:border-blue-400 cursor-pointer flex items-center gap-2 text-xs font-bold hover:text-blue-600 transition">
+                        <label for="inputFile" class="ml-auto p-2 px-3 rounded bg-white dark:bg-black border border-slate-200 dark:border-slate-800 hover:border-blue-400 cursor-pointer flex items-center gap-2 text-xs font-bold hover:text-blue-600 transition">
                             <i class="fa-regular fa-image"></i> 사진 첨부
                             <input type="file" id="inputFile" class="hidden" accept="image/*" onchange="insertImage(this)">
                         </label>
                     </div>
 
-                    <div id="markdown-toolbar" class="hidden flex gap-1 border-b border-slate-200 bg-white p-2 text-slate-500">
+                    <div id="markdown-toolbar" class="hidden flex gap-1 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-black p-2 text-slate-500 dark:text-slate-400">
                         <button type="button" onclick="insertMarkdown('**')" class="toolbar-btn p-2 rounded" title="굵게"><i class="fa-solid fa-bold"></i></button>
                         <button type="button" onclick="insertMarkdown('*')" class="toolbar-btn p-2 rounded" title="기울임"><i class="fa-solid fa-italic"></i></button>
                         <button type="button" onclick="insertMarkdown('~~')" class="toolbar-btn p-2 rounded" title="취소선"><i class="fa-solid fa-strikethrough"></i></button>
                         <button type="button" onclick="insertMarkdown('`')" class="toolbar-btn p-2 rounded" title="코드"><i class="fa-solid fa-code"></i></button>
-                        <div class="w-px h-6 bg-slate-300 mx-2 self-center"></div>
+                        <div class="w-px h-6 bg-slate-300 dark:bg-slate-700 mx-2 self-center"></div>
                         <span class="text-xs self-center text-slate-400">마크다운 모드 (HTML 혼용 가능)</span>
-                        <label for="inputFileMd" class="ml-auto p-2 px-3 rounded bg-white border border-slate-200 hover:border-blue-400 cursor-pointer flex items-center gap-2 text-xs font-bold hover:text-blue-600 transition">
+                        <label for="inputFileMd" class="ml-auto p-2 px-3 rounded bg-white dark:bg-black border border-slate-200 dark:border-slate-800 hover:border-blue-400 cursor-pointer flex items-center gap-2 text-xs font-bold hover:text-blue-600 transition">
                             <i class="fa-regular fa-image"></i> 사진 첨부
                             <input type="file" id="inputFileMd" class="hidden" accept="image/*" onchange="insertImage(this)">
                         </label>
                     </div>
 
-                    <div id="editorContentHtml" contenteditable="true" class="w-full h-[500px] p-6 outline-none overflow-y-auto prose max-w-none text-slate-800" data-placeholder="내용을 작성하세요..."></div>
+                    <div id="editorContentHtml" contenteditable="true" class="w-full h-[500px] p-6 outline-none overflow-y-auto prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-300" data-placeholder="내용을 작성하세요..."></div>
                     
                     <div id="markdown-container" class="hidden flex h-[500px]">
-                        <textarea id="editorContentMarkdown" class="w-1/2 h-full p-6 outline-none resize-none font-mono text-sm leading-relaxed text-slate-800 border-r border-slate-200 bg-slate-50" placeholder="마크다운 입력..."></textarea>
-                        <div id="markdown-preview" class="w-1/2 h-full p-6 overflow-y-auto prose max-w-none bg-white"></div>
+                        <textarea id="editorContentMarkdown" class="w-1/2 h-full p-6 outline-none resize-none font-mono text-sm leading-relaxed text-slate-800 dark:text-slate-300 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900" placeholder="마크다운 입력..."></textarea>
+                        <div id="markdown-preview" class="w-1/2 h-full p-6 overflow-y-auto prose dark:prose-invert max-w-none bg-white dark:bg-black"></div>
                     </div>
                 </div>
             </div>
             
-            <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-slate-200 p-4 z-20">
+            <div class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur border-t border-slate-200 dark:border-slate-800 p-4 z-20">
                 <div class="max-w-4xl mx-auto flex justify-end gap-3">
-                    <button onclick="confirmNavigation(lastPage)" class="px-6 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-100">취소</button>
-                    <button onclick="submitPost()" class="px-8 py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold shadow-lg">완료</button>
+                    <button onclick="confirmNavigation(lastPage)" class="px-6 py-3 rounded-xl text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-900">취소</button>
+                    <button onclick="submitPost()" class="px-8 py-3 rounded-xl bg-slate-900 dark:bg-white dark:text-black hover:bg-blue-600 dark:hover:bg-blue-400 text-white font-bold shadow-lg">완료</button>
                 </div>
             </div>
             <div class="h-24"></div>
@@ -536,21 +564,21 @@
     <div id="categoryModal" class="fixed inset-0 z-[100] hidden" onclick="closeCategoryModal()">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-modal" onclick="event.stopPropagation()">
-                <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
-                <h3 class="text-xl font-bold text-center mb-6 text-slate-800">어디에 글을 쓰시겠습니까?</h3>
+            <div class="bg-white dark:bg-black dark:border dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-8 relative animate-modal" onclick="event.stopPropagation()">
+                <button onclick="closeCategoryModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-xl"></i></button>
+                <h3 class="text-xl font-bold text-center mb-6 text-slate-800 dark:text-white">어디에 글을 쓰시겠습니까?</h3>
                 <div class="space-y-4">
-                    <button onclick="writePost('free')" class="cat-card w-full p-4 border border-slate-200 rounded-xl flex items-center gap-4 hover:bg-blue-50 transition bg-white group">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl"><i class="fa-regular fa-comments"></i></div>
-                        <div class="text-left"><div class="font-bold text-lg text-slate-800">자유대화방</div><div class="text-sm text-slate-500">자유로운 이야기</div></div>
+                    <button onclick="writePost('free')" class="cat-card w-full p-4 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-4 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition bg-white dark:bg-black group">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl"><i class="fa-regular fa-comments"></i></div>
+                        <div class="text-left"><div class="font-bold text-lg text-slate-800 dark:text-slate-200">자유대화방</div><div class="text-sm text-slate-500 dark:text-slate-400">자유로운 이야기</div></div>
                     </button>
-                    <button onclick="writePost('error')" class="cat-card w-full p-4 border border-slate-200 rounded-xl flex items-center gap-4 hover:bg-red-50 transition bg-white group">
-                        <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                        <div class="text-left"><div class="font-bold text-lg text-slate-800">오류해결소</div><div class="text-sm text-slate-500">질문 및 답변</div></div>
+                    <button onclick="writePost('error')" class="cat-card w-full p-4 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-4 hover:bg-red-50 dark:hover:bg-red-900/20 transition bg-white dark:bg-black group">
+                        <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 flex items-center justify-center text-xl"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                        <div class="text-left"><div class="font-bold text-lg text-slate-800 dark:text-slate-200">오류해결소</div><div class="text-sm text-slate-500 dark:text-slate-400">질문 및 답변</div></div>
                     </button>
-                    <button id="btn-write-notice" onclick="writePost('notice')" class="cat-card w-full p-4 border border-slate-200 rounded-xl flex items-center gap-4 hover:bg-slate-100 transition bg-white group hidden">
-                        <div class="w-12 h-12 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xl"><i class="fa-solid fa-bullhorn"></i></div>
-                        <div class="text-left"><div class="font-bold text-lg text-slate-800">공지사항</div><div class="text-sm text-slate-500">관리자 전용</div></div>
+                    <button id="btn-write-notice" onclick="writePost('notice')" class="cat-card w-full p-4 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-4 hover:bg-slate-100 dark:hover:bg-slate-900 transition bg-white dark:bg-black group hidden">
+                        <div class="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center text-xl"><i class="fa-solid fa-bullhorn"></i></div>
+                        <div class="text-left"><div class="font-bold text-lg text-slate-800 dark:text-slate-200">공지사항</div><div class="text-sm text-slate-500 dark:text-slate-400">관리자 전용</div></div>
                     </button>
                 </div>
             </div>
@@ -558,13 +586,13 @@
     </div>
     
     <div id="adminModal" class="fixed inset-0 z-[100] hidden" onclick="closeAdminModal()">
-        <div class="absolute inset-0 bg-white/80 backdrop-blur-md"></div>
+        <div class="absolute inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-md"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white border border-slate-200 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-modal" onclick="event.stopPropagation()">
-                <h3 class="text-lg font-bold text-slate-900 mb-4">관리자 접속</h3>
-                <input type="email" id="adminEmail" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-2 outline-none focus:border-red-500" placeholder="이메일" autocomplete="off">
-                <input type="password" id="adminPw" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 outline-none focus:border-red-500 font-mono" placeholder="비밀번호" onkeyup="if(event.key==='Enter') tryAdminLogin()" autocomplete="off">
-                <button onclick="tryAdminLogin()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-red-600">로그인</button>
+            <div class="bg-white dark:bg-black border border-slate-200 dark:border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center relative animate-modal" onclick="event.stopPropagation()">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">관리자 접속</h3>
+                <input type="email" id="adminEmail" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-xl px-4 py-3 mb-2 outline-none focus:border-red-500" placeholder="이메일" autocomplete="off">
+                <input type="password" id="adminPw" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200 rounded-xl px-4 py-3 mb-4 outline-none focus:border-red-500 font-mono" placeholder="비밀번호" onkeyup="if(event.key==='Enter') tryAdminLogin()" autocomplete="off">
+                <button onclick="tryAdminLogin()" class="w-full bg-slate-900 dark:bg-white text-white dark:text-black font-bold py-3 rounded-xl hover:bg-red-600 dark:hover:bg-red-500 transition">로그인</button>
             </div>
         </div>
     </div>
@@ -572,16 +600,16 @@
     <div id="passwordModal" class="fixed inset-0 z-[110] hidden" onclick="closePasswordModal()">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+            <div class="bg-white dark:bg-black dark:border dark:border-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 dark:text-blue-400">
                     <i class="fa-solid fa-lock text-xl"></i>
                 </div>
-                <h3 class="font-bold text-lg mb-2 text-slate-800">비밀번호 확인</h3>
-                <p class="text-sm text-slate-500 mb-6">작성 시 입력한 비밀번호를 입력하세요.</p>
-                <input type="password" id="verificationPw" class="w-full border border-slate-300 rounded-xl px-4 py-3 mb-6 outline-none focus:border-blue-500 font-mono text-center" placeholder="Password" onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmPasswordAction(); }" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
+                <h3 class="font-bold text-lg mb-2 text-slate-800 dark:text-white">비밀번호 확인</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">작성 시 입력한 비밀번호를 입력하세요.</p>
+                <input type="password" id="verificationPw" class="w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-black text-slate-900 dark:text-slate-200 rounded-xl px-4 py-3 mb-6 outline-none focus:border-blue-500 font-mono text-center" placeholder="Password" onkeydown="if(event.key==='Enter') { event.preventDefault(); confirmPasswordAction(); }" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
                 <div class="flex gap-3">
-                    <button onclick="closePasswordModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition">취소</button>
-                    <button onclick="confirmPasswordAction()" class="flex-1 py-3 rounded-xl bg-blue-600 font-bold text-white hover:bg-blue-500 transition shadow-lg shadow-blue-500/30">확인</button>
+                    <button onclick="closePasswordModal()" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">취소</button>
+                    <button onclick="confirmPasswordAction()" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg shadow-blue-500/30">확인</button>
                 </div>
             </div>
         </div>
@@ -590,13 +618,13 @@
     <div id="alertModal" class="fixed inset-0 z-[120] hidden" onclick="closeAlert()">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+            <div class="bg-white dark:bg-black dark:border dark:border-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 dark:text-blue-400">
                     <i class="fa-solid fa-circle-info text-xl"></i>
                 </div>
-                <h3 class="font-bold text-lg mb-2 text-slate-800" id="alertTitle">알림</h3>
-                <p class="text-sm text-slate-500 mb-6 whitespace-pre-line" id="alertMessage">내용</p>
-                <button id="alertOkBtn" onclick="closeAlert()" class="w-full py-3 rounded-xl bg-blue-600 font-bold text-white hover:bg-blue-500 transition shadow-lg shadow-blue-500/30">확인</button>
+                <h3 class="font-bold text-lg mb-2 text-slate-800 dark:text-white" id="alertTitle">알림</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 whitespace-pre-line" id="alertMessage">내용</p>
+                <button id="alertOkBtn" onclick="closeAlert()" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition shadow-lg shadow-blue-500/30">확인</button>
             </div>
         </div>
     </div>
@@ -604,23 +632,23 @@
     <div id="confirmModal" class="fixed inset-0 z-[120] hidden" onclick="closeConfirm()">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
         <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
-                 <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+            <div class="bg-white dark:bg-black dark:border dark:border-slate-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm relative text-center animate-modal" onclick="event.stopPropagation()">
+                 <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600 dark:text-red-400">
                     <i class="fa-solid fa-triangle-exclamation text-xl"></i>
                 </div>
-                <h3 class="font-bold text-lg mb-2 text-slate-800" id="confirmTitle">확인</h3>
-                <p class="text-sm text-slate-500 mb-6 whitespace-pre-wrap break-all" id="confirmMessage">정말 진행하시겠습니까?</p>
+                <h3 class="font-bold text-lg mb-2 text-slate-800 dark:text-white" id="confirmTitle">확인</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 whitespace-pre-wrap break-all" id="confirmMessage">정말 진행하시겠습니까?</p>
                 <div class="flex gap-3">
-                    <button onclick="closeConfirm()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition">취소</button>
-                    <button id="btn-confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 font-bold text-white hover:bg-red-500 transition shadow-lg shadow-red-500/30">삭제</button>
+                    <button onclick="closeConfirm()" class="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-900 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition">취소</button>
+                    <button id="btn-confirm-yes" class="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold transition shadow-lg shadow-red-500/30">삭제</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <footer id="main-footer" class="bg-white border-t border-slate-100 py-10 mt-auto text-center relative">
+    <footer id="main-footer" class="bg-white dark:bg-black border-t border-slate-100 dark:border-slate-800 py-10 mt-auto text-center relative">
         <div class="flex justify-center space-x-6 mb-4">
-            <a href="https://github.com/Pretsg/Archeage_auto/releases" target="_blank" class="text-slate-400 hover:text-black text-2xl transition"><i class="fa-brands fa-github"></i></a>
+            <a href="https://github.com/Pretsg/Archeage_auto/releases" target="_blank" class="text-slate-400 hover:text-black dark:hover:text-white text-2xl transition"><i class="fa-brands fa-github"></i></a>
             <a href="https://www.youtube.com/@%ED%95%98%ED%8F%AC%EC%B9%B4" target="_blank" class="text-slate-400 hover:text-red-600 text-2xl transition"><i class="fa-brands fa-youtube"></i></a>
         </div>
         <p class="text-slate-400 text-sm mb-2">&copy; 하포카 해결소</p>
@@ -629,7 +657,7 @@
             <a href="https://policies.google.com/privacy" target="_blank" class="hover:text-slate-500 underline">Privacy Policy</a> and 
             <a href="https://policies.google.com/terms" target="_blank" class="hover:text-slate-500 underline">Terms of Service</a> apply.
         </p>
-        <button onclick="openAdminLogin()" class="absolute bottom-4 left-4 text-slate-100 hover:text-slate-300 transition"><i class="fa-solid fa-lock text-xs"></i></button>
+        <button onclick="openAdminLogin()" class="absolute bottom-4 left-4 text-slate-100 dark:text-slate-900 hover:text-slate-300 dark:hover:text-slate-700 transition"><i class="fa-solid fa-lock text-xs"></i></button>
     </footer>
 
     <script>
