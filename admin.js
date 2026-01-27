@@ -13,10 +13,10 @@ function switchAdminTab(tabName) {
         var content = document.getElementById('admin-view-' + t);
         
         if (t === tabName) {
-            btn.className = "px-4 py-2 font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 rounded-t-lg transition whitespace-nowrap";
+            btn.className = "px-4 py-2 font-bold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20 rounded-t-lg transition whitespace-nowrap";
             content.classList.remove('hidden');
         } else {
-            btn.className = "px-4 py-2 font-bold text-slate-500 hover:text-slate-700 border-b-2 border-transparent hover:border-slate-300 transition whitespace-nowrap";
+            btn.className = "px-4 py-2 font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-b-2 border-transparent hover:border-slate-300 dark:hover:border-slate-700 transition whitespace-nowrap";
             content.classList.add('hidden');
         }
     });
@@ -79,6 +79,10 @@ async function loadVisitorChart() {
     var labels = stats.map(function(s) { return s.date.substring(5); });
     var values = stats.map(function(s) { return s.visitors; });
 
+    var isDark = document.documentElement.classList.contains('dark');
+    var gridColor = isDark ? '#334155' : '#f1f5f9';
+    var tickColor = isDark ? '#94a3b8' : '#64748b';
+
     visitorChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -91,7 +95,7 @@ async function loadVisitorChart() {
                 borderWidth: 2,
                 tension: 0.3,
                 fill: true,
-                pointBackgroundColor: '#ffffff',
+                pointBackgroundColor: isDark ? '#60a5fa' : '#ffffff',
                 pointBorderColor: '#2563eb',
                 pointRadius: 4
             }]
@@ -101,8 +105,15 @@ async function loadVisitorChart() {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, font: { family: 'Pretendard' } } },
-                x: { grid: { display: false }, ticks: { font: { family: 'Pretendard' } } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: gridColor }, 
+                    ticks: { color: tickColor, stepSize: 1, font: { family: 'Pretendard' } } 
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: tickColor, font: { family: 'Pretendard' } } 
+                }
             }
         }
     });
@@ -121,16 +132,16 @@ async function fetchRecentPostsAdmin() {
     if(data && data.length > 0) {
         data.forEach(function(post) {
             var date = new Date(post.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
-            var typeBadge = post.type === 'free' ? '<span class="text-slate-400 text-xs mr-1">[자유]</span>' : '<span class="text-red-400 text-xs mr-1">[질문]</span>';
+            var typeBadge = post.type === 'free' ? '<span class="text-slate-400 dark:text-slate-500 text-xs mr-1">[자유]</span>' : '<span class="text-red-400 text-xs mr-1">[질문]</span>';
             
             var li = document.createElement('li');
-            li.className = "flex justify-between items-center py-2 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 px-2 rounded transition";
+            li.className = "flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800 last:border-0 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 px-2 rounded transition";
             li.onclick = function() { readPost(post.id); };
-            li.innerHTML = '<div class="truncate mr-2 flex items-center">' + typeBadge + '<span class="text-slate-700 font-bold text-sm truncate">' + escapeHtml(post.title) + '</span></div><div class="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">' + date + '</div>';
+            li.innerHTML = '<div class="truncate mr-2 flex items-center">' + typeBadge + '<span class="text-slate-700 dark:text-slate-300 font-bold text-sm truncate">' + escapeHtml(post.title) + '</span></div><div class="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">' + date + '</div>';
             list.appendChild(li);
         });
     } else {
-        list.innerHTML = '<li class="text-center text-slate-400 py-4 text-xs">최근 글이 없습니다.</li>';
+        list.innerHTML = '<li class="text-center text-slate-400 dark:text-slate-500 py-4 text-xs">최근 글이 없습니다.</li>';
     }
 }
 
@@ -146,12 +157,12 @@ async function fetchBanList() {
     if(data && data.length > 0) {
         data.forEach(function(ban) {
             var li = document.createElement('li');
-            li.className = "flex justify-between items-center bg-white p-2 rounded border border-slate-200";
-            li.innerHTML = '<span>' + ban.ip + ' <span class="text-xs text-slate-400">(' + ban.reason + ')</span></span><button onclick="removeBan(\'' + ban.ip + '\')" class="text-red-500 hover:text-red-700 text-xs font-bold">해제</button>';
+            li.className = "flex justify-between items-center bg-white dark:bg-black p-2 rounded border border-slate-200 dark:border-slate-800";
+            li.innerHTML = '<span class="text-slate-800 dark:text-slate-200">' + ban.ip + ' <span class="text-xs text-slate-400">(' + ban.reason + ')</span></span><button onclick="removeBan(\'' + ban.ip + '\')" class="text-red-500 hover:text-red-700 text-xs font-bold">해제</button>';
             list.appendChild(li);
         });
     } else {
-        list.innerHTML = '<li class="text-center text-slate-400 text-xs">차단된 IP가 없거나 권한이 없습니다.</li>';
+        list.innerHTML = '<li class="text-center text-slate-400 dark:text-slate-500 text-xs">차단된 IP가 없거나 권한이 없습니다.</li>';
     }
 }
 
@@ -238,8 +249,8 @@ function renderDeletedPosts() {
         
         var isReportedMany = (post.reports && post.reports >= 5);
         var cardClass = isReportedMany 
-            ? "bg-red-50 p-4 rounded-xl border border-red-500 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-red-100 transition"
-            : "bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition";
+            ? "bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-500 dark:border-red-800 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+            : "bg-white dark:bg-black p-4 rounded-xl border border-red-100 dark:border-slate-800 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition";
             
         var badgeHtml = isReportedMany ? '<span class="text-red-600 font-bold mr-2">[신고누적]</span>' : '';
 
@@ -250,7 +261,7 @@ function renderDeletedPosts() {
         };
         var ipDisplay = post.ip ? '<span class="text-xs text-red-300 font-bold ml-1">(' + post.ip + ')</span>' : '';
 
-        div.innerHTML = '<input type="checkbox" class="del-chk-post w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="' + post.id + '" onclick="event.stopPropagation()"><div class="flex-grow min-w-0"><div class="font-bold text-slate-700 line-clamp-1">' + badgeHtml + escapeHtml(post.title) + '</div><div class="text-xs text-red-400 mt-1">삭제일: ' + delDate.toLocaleDateString() + ' (영구 삭제까지 ' + remainDays + '일)</div><div class="text-xs text-slate-400">작성자: ' + escapeHtml(post.author) + ipDisplay + '</div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="event.stopPropagation(); restorePost(\'' + post.id + '\')" class="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100 transition whitespace-nowrap">복구</button><button onclick="event.stopPropagation(); permanentlyDeletePost(\'' + post.id + '\')" class="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition whitespace-nowrap">영구삭제</button></div>';
+        div.innerHTML = '<input type="checkbox" class="del-chk-post w-5 h-5 rounded border-gray-300 dark:border-slate-700 dark:bg-slate-800 text-blue-600 focus:ring-blue-500" value="' + post.id + '" onclick="event.stopPropagation()"><div class="flex-grow min-w-0"><div class="font-bold text-slate-700 dark:text-slate-300 line-clamp-1">' + badgeHtml + escapeHtml(post.title) + '</div><div class="text-xs text-red-400 mt-1">삭제일: ' + delDate.toLocaleDateString() + ' (영구 삭제까지 ' + remainDays + '일)</div><div class="text-xs text-slate-400">작성자: ' + escapeHtml(post.author) + ipDisplay + '</div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="event.stopPropagation(); restorePost(\'' + post.id + '\')" class="px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/50 transition whitespace-nowrap">복구</button><button onclick="event.stopPropagation(); permanentlyDeletePost(\'' + post.id + '\')" class="px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/50 transition whitespace-nowrap">영구삭제</button></div>';
         list.appendChild(div);
     });
 
@@ -319,8 +330,8 @@ function renderDeletedComments() {
 
         var isReportedMany = (cmt.reports && cmt.reports >= 5);
         var cardClass = isReportedMany 
-            ? "bg-red-50 p-4 rounded-xl border border-red-500 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-red-100 transition"
-            : "bg-white p-4 rounded-xl border border-red-100 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-slate-50 transition";
+            ? "bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-500 dark:border-red-800 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition"
+            : "bg-white dark:bg-black p-4 rounded-xl border border-red-100 dark:border-slate-800 shadow-sm flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition";
             
         var badgeHtml = isReportedMany ? '<span class="text-red-600 font-bold mr-2">[신고누적]</span>' : '';
 
@@ -332,7 +343,7 @@ function renderDeletedComments() {
             }
         };
         
-        div.innerHTML = '<input type="checkbox" class="del-chk-comment w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" value="' + cmt.id + '" onclick="event.stopPropagation()"><div class="flex-grow min-w-0"><div class="font-bold text-slate-700 line-clamp-1">' + badgeHtml + escapeHtml(cleanContent) + '...</div><div class="text-xs text-red-400 mt-1">삭제일: ' + delDate.toLocaleDateString() + ' (영구 삭제까지 ' + remainDays + '일)</div><div class="text-xs text-slate-400">작성자: ' + escapeHtml(cmt.author) + ipDisplay + '</div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="event.stopPropagation(); restoreComment(\'' + cmt.id + '\')" class="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100 transition whitespace-nowrap">복구</button><button onclick="event.stopPropagation(); permanentlyDeleteComment(\'' + cmt.id + '\')" class="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition whitespace-nowrap">영구삭제</button></div>';
+        div.innerHTML = '<input type="checkbox" class="del-chk-comment w-5 h-5 rounded border-gray-300 dark:border-slate-700 dark:bg-slate-800 text-blue-600 focus:ring-blue-500" value="' + cmt.id + '" onclick="event.stopPropagation()"><div class="flex-grow min-w-0"><div class="font-bold text-slate-700 dark:text-slate-300 line-clamp-1">' + badgeHtml + escapeHtml(cleanContent) + '...</div><div class="text-xs text-red-400 mt-1">삭제일: ' + delDate.toLocaleDateString() + ' (영구 삭제까지 ' + remainDays + '일)</div><div class="text-xs text-slate-400">작성자: ' + escapeHtml(cmt.author) + ipDisplay + '</div></div><div class="flex flex-col gap-2 shrink-0"><button onclick="event.stopPropagation(); restoreComment(\'' + cmt.id + '\')" class="px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/50 transition whitespace-nowrap">복구</button><button onclick="event.stopPropagation(); permanentlyDeleteComment(\'' + cmt.id + '\')" class="px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/50 transition whitespace-nowrap">영구삭제</button></div>';
         list.appendChild(div);
     });
 
@@ -382,7 +393,7 @@ async function permanentlyDeleteComment(id) {
     var dbClient = getDbClient();
     showConfirm("이 댓글을 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", async function() {
         var res = await dbClient.from('comments').delete().eq('id', id);
-        if(res.error) showAlert("삭제 실패: " + res.error.message);
+        if(res.error) showAlert("삭제 실패");
         else {
             showAlert("영구 삭제되었습니다.");
             fetchDeletedComments();
@@ -428,13 +439,13 @@ function renderIpSearchResults() {
     if (ipSearchPage === 0) container.innerHTML = '';
     
     if (combinedData.length === 0) {
-        container.innerHTML = '<div class="text-center py-10 text-slate-400">해당 IP로 작성된 글이나 댓글이 없습니다.</div>';
+        container.innerHTML = '<div class="text-center py-10 text-slate-400 dark:text-slate-500">해당 IP로 작성된 글이나 댓글이 없습니다.</div>';
         return;
     }
 
     if (ipSearchPage === 0) {
         var header = document.createElement('div');
-        header.className = "mb-4 text-sm text-slate-500 font-bold";
+        header.className = "mb-4 text-sm text-slate-500 dark:text-slate-400 font-bold";
         header.innerText = '총 ' + combinedData.length + '건 검색됨';
         container.appendChild(header);
     }
@@ -444,22 +455,22 @@ function renderIpSearchResults() {
         var obj = item.data;
         var isDeleted = !!obj.deleted_at;
         var div = document.createElement('div');
-        div.className = 'bg-white p-3 rounded-lg border ' + (isDeleted ? 'border-red-200 bg-red-50' : 'border-slate-200') + ' shadow-sm hover:bg-slate-50 cursor-pointer mb-2';
+        div.className = 'bg-white dark:bg-black p-3 rounded-lg border ' + (isDeleted ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : 'border-slate-200 dark:border-slate-800') + ' shadow-sm hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer mb-2';
         
         if (isPost) {
             div.onclick = function() { readPost(obj.id); };
-            div.innerHTML = '<div class="flex justify-between items-center"><div class="truncate mr-2"><span class="text-xs font-bold text-blue-600 mr-1">[' + obj.type + ']</span>' + (isDeleted ? '<span class="text-xs font-bold text-red-600 mr-1">[삭제됨]</span>' : '') + '<span class="text-sm font-medium text-slate-800">' + escapeHtml(obj.title) + '</span></div><div class="text-xs text-slate-400 whitespace-nowrap">' + item.date.toLocaleDateString() + '</div></div>';
+            div.innerHTML = '<div class="flex justify-between items-center"><div class="truncate mr-2"><span class="text-xs font-bold text-blue-600 dark:text-blue-400 mr-1">[' + obj.type + ']</span>' + (isDeleted ? '<span class="text-xs font-bold text-red-600 dark:text-red-400 mr-1">[삭제됨]</span>' : '') + '<span class="text-sm font-medium text-slate-800 dark:text-slate-200">' + escapeHtml(obj.title) + '</span></div><div class="text-xs text-slate-400 whitespace-nowrap">' + item.date.toLocaleDateString() + '</div></div>';
         } else {
             div.onclick = function() { showContentModal(obj.content, "댓글 내용"); };
             var cleanContent = obj.content.replace(/<[^>]*>/g, ' ').substring(0, 40);
-            div.innerHTML = '<div class="text-sm text-slate-700 mb-1 line-clamp-1">' + (isDeleted ? '<span class="text-xs font-bold text-red-600 mr-1">[삭제됨]</span>' : '') + '<i class="fa-regular fa-comment-dots mr-1 text-slate-400"></i>' + escapeHtml(cleanContent) + '...</div><div class="flex justify-between items-center text-xs text-slate-400"><span>작성자: ' + escapeHtml(obj.author) + '</span><span>' + item.date.toLocaleDateString() + '</span></div></div>';
+            div.innerHTML = '<div class="text-sm text-slate-700 dark:text-slate-300 mb-1 line-clamp-1">' + (isDeleted ? '<span class="text-xs font-bold text-red-600 dark:text-red-400 mr-1">[삭제됨]</span>' : '') + '<i class="fa-regular fa-comment-dots mr-1 text-slate-400"></i>' + escapeHtml(cleanContent) + '...</div><div class="flex justify-between items-center text-xs text-slate-400"><span>작성자: ' + escapeHtml(obj.author) + '</span><span>' + item.date.toLocaleDateString() + '</span></div></div>';
         }
         container.appendChild(div);
     });
 
     if (combinedData.length > end) {
         var btn = document.createElement('button');
-        btn.className = "w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition mt-2";
+        btn.className = "w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition mt-2";
         btn.innerHTML = '더 보기 (' + (combinedData.length - end) + '개 남음)';
         btn.onclick = function() {
             ipSearchPage++;
@@ -480,8 +491,8 @@ async function fetchReportedItems() {
     var container = document.getElementById('reported-posts-list'); 
     var containerC = document.getElementById('reported-comments-list');
     
-    var postsRes = await dbClient.from('posts').select('*').gte('reports', 1).is('deleted_at', null).order('reports', {ascending:false});
-    var cmtsRes = await dbClient.from('comments').select('*').gte('reports', 1).is('deleted_at', null).order('reports', {ascending:false});
+    var postsRes = await dbClient.from('posts').select('*').gte('reports', 5).is('deleted_at', null).order('reports', {ascending:false});
+    var cmtsRes = await dbClient.from('comments').select('*').gte('reports', 5).is('deleted_at', null).order('reports', {ascending:false});
 
     container.innerHTML = ''; 
     containerC.innerHTML = '';
@@ -489,10 +500,10 @@ async function fetchReportedItems() {
     if(postsRes.data) {
         postsRes.data.forEach(function(item) {
             var div = document.createElement('div');
-            div.className = "bg-white p-3 rounded-xl border border-red-200 bg-red-50 flex items-center justify-between mb-2 cursor-pointer hover:bg-red-100 transition";
+            div.className = "bg-white dark:bg-black p-3 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 flex items-center justify-between mb-2 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition";
             div.onclick = function(e) { if(e.target.tagName !== 'BUTTON') readPost(item.id); };
             
-            div.innerHTML = '<div><span class="text-xs font-bold text-red-600 mr-2">신고 ' + item.reports + '회</span><span class="text-sm font-bold text-slate-700">' + escapeHtml(item.title) + '</span></div><div><button onclick="clearReports(\'post\', \'' + item.id + '\')" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs hover:bg-slate-50 mr-2" onclick="event.stopPropagation()">초기화</button><button onclick="deletePostByAdmin(\'' + item.id + '\')" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700" onclick="event.stopPropagation()">삭제</button></div>';
+            div.innerHTML = '<div><span class="text-xs font-bold text-red-600 dark:text-red-400 mr-2">신고 ' + item.reports + '회</span><span class="text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(item.title) + '</span></div><div><button onclick="clearReports(\'post\', \'' + item.id + '\')" class="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 mr-2" onclick="event.stopPropagation()">초기화</button><button onclick="deletePostByAdmin(\'' + item.id + '\')" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700" onclick="event.stopPropagation()">삭제</button></div>';
             container.appendChild(div);
         });
     }
@@ -500,11 +511,11 @@ async function fetchReportedItems() {
     if(cmtsRes.data) {
         cmtsRes.data.forEach(function(item) {
             var div = document.createElement('div');
-            div.className = "bg-white p-3 rounded-xl border border-red-200 bg-red-50 flex items-center justify-between mb-2 cursor-pointer hover:bg-red-100 transition";
+            div.className = "bg-white dark:bg-black p-3 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 flex items-center justify-between mb-2 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/20 transition";
             var content = item.content.replace(/<[^>]*>/g, '').substring(0,30);
             div.onclick = function(e) { if(e.target.tagName !== 'BUTTON') showContentModal(item.content, "신고된 댓글 내용"); };
             
-            div.innerHTML = '<div><span class="text-xs font-bold text-red-600 mr-2">신고 ' + item.reports + '회</span><span class="text-sm font-bold text-slate-700">' + escapeHtml(content) + '</span></div><div><button onclick="clearReports(\'comment\', \'' + item.id + '\')" class="px-3 py-1 bg-white border border-slate-300 rounded text-xs hover:bg-slate-50 mr-2" onclick="event.stopPropagation()">초기화</button><button onclick="deleteCommentByAdmin(\'' + item.id + '\')" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700" onclick="event.stopPropagation()">삭제</button></div>';
+            div.innerHTML = '<div><span class="text-xs font-bold text-red-600 dark:text-red-400 mr-2">신고 ' + item.reports + '회</span><span class="text-sm font-bold text-slate-700 dark:text-slate-200">' + escapeHtml(content) + '</span></div><div><button onclick="clearReports(\'comment\', \'' + item.id + '\')" class="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs hover:bg-slate-50 dark:hover:bg-slate-700 dark:text-slate-300 mr-2" onclick="event.stopPropagation()">초기화</button><button onclick="deleteCommentByAdmin(\'' + item.id + '\')" class="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700" onclick="event.stopPropagation()">삭제</button></div>';
             containerC.appendChild(div);
         });
     }
@@ -552,3 +563,46 @@ async function deleteCommentByAdmin(id) {
         }
     }, "댓글 삭제", "삭제");
 }
+
+window.changePostCategory = async function(selectEl, postId) {
+    var newType = selectEl.value;
+    if(!newType) return;
+    
+    var dbClient = getDbClient();
+    var newVersion = 'common'; 
+
+    if (newType === 'free') {
+        var input = prompt("이동할 카테고리의 버전 태그를 입력해주세요.\n(입력값: 1.2, 5.0, common)", "common");
+        if (input === null) {
+            selectEl.value = ""; 
+            return; 
+        }
+        input = input.trim();
+        if (['1.2', '5.0', 'common'].includes(input)) {
+            newVersion = input;
+        } else {
+            alert("잘못된 버전입니다. 'common'으로 설정됩니다.");
+            newVersion = 'common';
+        }
+    } 
+    else if (newType === 'error') {
+        newVersion = 'common';
+    }
+
+    if(confirm('정말로 카테고리를 이동하시겠습니까?')) {
+        var res = await dbClient.from('posts').update({
+            type: newType,
+            game_version: newVersion
+        }).eq('id', postId);
+
+        if(res.error) {
+            alert('이동 실패: ' + res.error.message);
+            selectEl.value = "";
+        } else {
+            alert('게시글이 이동되었습니다.');
+            window.location.reload();
+        }
+    } else {
+        selectEl.value = "";
+    }
+};
