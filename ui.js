@@ -10,7 +10,7 @@ window.PAGE_TITLES = {
     'test': '테스트 게시판'
 };
 
-window.ENABLE_SNOW = true;
+
 window.particlesConfig = {
     "particles": {
         "number": { "value": 100 },
@@ -21,7 +21,7 @@ window.particlesConfig = {
     }
 };
 
-window.router = function(page, isAdmin) {
+window.uiRouter = function(page, isAdmin) {
     if (page === 'error') page = 'list';
 
     document.title = window.PAGE_TITLES[page] || '하포카 해결소';
@@ -846,3 +846,164 @@ window.renderTopNotification = async function() {
 document.addEventListener('DOMContentLoaded', function() {
     window.renderTopNotification();
 });
+
+window.toggleMobileMenu = () => {
+    const menu = document.getElementById('mobile-menu');
+    if(menu) menu.classList.toggle('hidden');
+};
+
+window.openCategoryModal = () => {
+    const modal = document.getElementById('categoryModal');
+    if(modal) {
+        modal.classList.remove('hidden');
+        const noticeBtn = document.getElementById('btn-write-notice');
+        if(noticeBtn) noticeBtn.classList.toggle('hidden', !isAdmin);
+        
+        if (isAdmin) {
+            if (!document.getElementById('btn-write-test')) {
+                const testBtn = noticeBtn.cloneNode(true);
+                testBtn.id = 'btn-write-test';
+                testBtn.innerHTML = '<div class="text-3xl mb-2">🧪</div><div class="font-bold">테스트 글쓰기</div>';
+                testBtn.onclick = () => window.writePost('test');
+                noticeBtn.parentNode.insertBefore(testBtn, noticeBtn.nextSibling);
+            }
+            
+            if (!document.getElementById('btn-view-test')) {
+                const viewTestBtn = noticeBtn.cloneNode(true);
+                viewTestBtn.id = 'btn-view-test';
+                viewTestBtn.className = "flex flex-col items-center justify-center p-6 border-2 border-slate-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition cursor-pointer group";
+                viewTestBtn.innerHTML = '<div class="text-3xl mb-2">👁️</div><div class="font-bold">테스트 게시판 보기</div>';
+                viewTestBtn.onclick = () => {
+                    window.closeCategoryModal();
+                    window.router('test');
+                };
+                noticeBtn.parentNode.appendChild(viewTestBtn);
+            }
+        } else {
+            const testBtn = document.getElementById('btn-write-test');
+            const viewTestBtn = document.getElementById('btn-view-test');
+            if(testBtn) testBtn.remove();
+            if(viewTestBtn) viewTestBtn.remove();
+        }
+    }
+};
+
+window.closeCategoryModal = () => {
+    const modal = document.getElementById('categoryModal');
+    if(modal) modal.classList.add('hidden');
+};
+
+function renderBoard() {
+    const container = document.getElementById('board-container');
+    if(!container) return;
+
+    const titles = { 
+        notice: {t:'📢 공지사항', d:'중요 업데이트 및 안내'}, 
+        free: {t:'💬 자유대화방', d:'자유로운 소통 공간'}, 
+        error: {t:'🛠️ 오류해결소', d:'오류 질문 및 해결법 공유'},
+        test: {t:'🧪 테스트 게시판', d:'관리자 전용 테스트 공간'}
+    };
+    
+    const tEl = document.getElementById('board-title');
+    const dEl = document.getElementById('board-desc');
+    if(tEl && titles[currentBoardType]) tEl.innerText = titles[currentBoardType].t;
+    if(dEl && titles[currentBoardType]) dEl.innerText = titles[currentBoardType].d;
+    
+    const toggles = document.getElementById('view-toggles');
+    if(toggles) toggles.classList.toggle('hidden', currentBoardType !== 'error');
+    
+    const writeBtn = document.getElementById('btn-write-board');
+    if(writeBtn) writeBtn.classList.toggle('hidden', currentBoardType === 'notice' && !isAdmin);
+
+    if (currentBoardType === 'error') {
+        const gBtn = document.getElementById('btn-grid');
+        const lBtn = document.getElementById('btn-list');
+        if(gBtn) gBtn.classList.toggle('view-btn-active', errorViewMode === 'grid');
+        if(lBtn) lBtn.classList.toggle('view-btn-active', errorViewMode === 'list');
+    }
+    
+    if (typeof window.renderPostList === 'function') {
+        window.renderPostList(posts, 'board-container', errorViewMode, currentBoardType, isAdmin);
+    }
+}
+
+function renderSearchResults(results, keyword) {
+    const container = document.getElementById('search-results-container');
+    const noResult = document.getElementById('search-no-result');
+    
+    if(results.length === 0) {
+        noResult.classList.remove('hidden');
+        return;
+    }
+    noResult.classList.add('hidden');
+
+    const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지', 'test':'테스트'};
+    const typeColor = {
+        'free':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', 
+        'error':'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', 
+        'notice':'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400', 
+        'test':'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+    };
+
+    results.forEach(post => {
+        let highlightedTitle = escapeHtml(post.title);
+        const searchType = document.getElementById('searchTypeSelect').value === 'nickname' ? 'nickname' : 'all';
+        
+        if (searchType !== 'nickname') {
+            const regex = new RegExp(`(${keyword})`, 'gi');
+            highlightedTitle = escapeHtml(post.title).replace(regex, '<span class="search-highlight">$1</span>');
+        }
+        
+        let snippet = "";
+        const div = document.createElement('div');
+        let cleanContent = post.content ? post.content.replace(/<!-- version:.*? -->/g, '') : "";
+        div.innerHTML = marked.parse(cleanContent); 
+        let textContent = div.textContent || div.innerText || "";
+        
+        snippet = textContent.substring(0, 100) + "...";
+        
+        if (searchType !== 'nickname') {
+            const idx = textContent.toLowerCase().indexOf(keyword.toLowerCase());
+            if(idx > -1) {
+                const start = Math.max(0, idx - 20);
+                const end = Math.min(textContent.length, idx + 40);
+                snippet = (start>0?"...":"") + textContent.substring(start, end) + (end<textContent.length?"...":"");
+            }
+        }
+        
+        const badgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded font-bold ${typeColor[post.type] || 'bg-gray-100 dark:bg-slate-800'}">${typeMap[post.type] || '기타'}</span>`;
+
+        container.innerHTML += `<div onclick="readPost('${post.id}')" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+                ${badgeHtml}
+                <span class="text-xs text-slate-400 dark:text-slate-500">${new Date(post.created_at).toLocaleDateString()}</span>
+            </div>
+            <h3 class="font-bold text-lg text-slate-800 dark:text-slate-200 mb-2 truncate">${highlightedTitle}</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3 break-all">${escapeHtml(snippet)}</p>
+            <div class="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                <span>${escapeHtml(post.author)}</span>
+                <span class="mx-1">|</span>
+                <i class="fa-regular fa-eye mr-1"></i> ${post.views||0}
+            </div>
+        </div>`;
+    });
+}
+
+window.openLightbox = openLightbox;
+window.closeLightbox = closeLightbox;
+
+window.toggleTheme = function() {
+    if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    }
+};
+
+window.confirmLink = (url) => {
+    showConfirm(`외부 사이트로 이동합니다.\n\n링크: ${url}\n\n정말 연결하시겠습니까?`, () => {
+        window.open(url, '_blank');
+    }, "외부 링크 연결 확인", "이동");
+};
