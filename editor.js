@@ -630,3 +630,237 @@ function setupPasteHandlers(postCallback, commentCallback) {
         cmtInput.addEventListener('paste', (e) => handlePaste(e, commentCallback, false));
     }
 }
+
+window.writePost = (type) => {
+    document.getElementById('categoryModal').classList.add('hidden');
+
+    if (editingPostId) {
+        showConfirm("현재 수정 중인 글이 있습니다.\n글쓰기로 이동하면 수정 내용은 저장되지 않습니다.\n새로운 글을 쓰시겠습니까?", () => {
+            _proceedWritePost(type);
+        }, "글쓰기 전환", "이동");
+        return;
+    }
+
+    _proceedWritePost(type);
+};
+
+function _proceedWritePost(type) {
+    localStorage.removeItem('tempPost'); 
+    editingPostId = null;
+    currentBoardType = type;
+
+    const header = document.getElementById('write-header');
+    let headerText = "";
+    if (type === 'notice') headerText = "📢 공지사항 작성";
+    else if (type === 'free') headerText = "💬 자유대화방 글쓰기";
+    else if (type === 'test') headerText = "🧪 관리자 테스트 글쓰기"; 
+    else headerText = "🛠️ 오류 질문 작성";
+    
+    if(header) header.innerText = headerText;
+    
+    const versionContainer = document.getElementById('version-select-container');
+    if (versionContainer) {
+        if (type === 'test' || type === 'free') {
+            versionContainer.classList.remove('hidden');
+            document.getElementById('selectedGameVersion').value = "";
+            document.getElementById('txt-version-select').innerText = "선택안함";
+        } else {
+            versionContainer.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('inputTitle').value=''; 
+    const nameInput = document.getElementById('inputName');
+    nameInput.value = loadSavedNickname();
+    nameInput.disabled = false;
+    
+    const pwInput = document.getElementById('inputPw');
+    pwInput.value = '';
+    pwInput.disabled = false;
+    
+    const pwContainer = document.getElementById('pw-container');
+    if(pwContainer) pwContainer.classList.remove('hidden');
+
+    if(isAdmin) {
+        nameInput.value = "하포카";
+        nameInput.disabled = true;
+        pwContainer.classList.add('hidden');
+    }
+
+    const editorHtml = document.getElementById('editorContentHtml');
+    if(editorHtml) editorHtml.innerHTML='';
+    const editorMd = document.getElementById('editorContentMarkdown');
+    if(editorMd) editorMd.value='';
+    const mdPreview = document.getElementById('markdown-preview');
+    if(mdPreview) mdPreview.innerHTML='';
+    
+    const tabHtml = document.getElementById('tab-html');
+    if(tabHtml) {
+        tabHtml.disabled = false;
+        tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+        tabHtml.title = "";
+    }
+
+    window.switchEditorTab('html');
+    window.router('write');
+    
+    if (typeof updateToolbarState === 'function') {
+        setTimeout(updateToolbarState, 100);
+    }
+}
+
+function goEditMode(post) {
+    editingPostId = post.id;
+    currentBoardType = post.type;
+    
+    window.router('write', isAdmin);
+
+    setTimeout(() => {
+        document.getElementById('write-header').innerText = "글 수정하기";
+        document.getElementById('inputTitle').value = post.title;
+
+        document.getElementById('inputName').value = post.author;
+        document.getElementById('inputName').disabled = true;
+        document.getElementById('inputPw').disabled = true;
+        
+        if(isAdmin) document.getElementById('checkPinned').checked = post.is_pinned || false;
+
+        const versionContainer = document.getElementById('version-select-container');
+        if (versionContainer) {
+            if (currentBoardType === 'test' || currentBoardType === 'free') {
+                versionContainer.classList.remove('hidden');
+                
+                let selectVal = "";
+                let cleanContent = post.content || "";
+                
+                const match = cleanContent.match(/<!-- version:(.*?) -->/);
+                if (match && match[1]) {
+                    selectVal = match[1];
+                    cleanContent = cleanContent.replace(/<!-- version:.*? -->/g, ''); 
+                }
+
+                document.getElementById('selectedGameVersion').value = selectVal;
+                
+                let label = "선택안함";
+                if(selectVal === '1.2') label = "1.2 버전";
+                else if(selectVal === '5.0') label = "5.0 버전";
+                else if(selectVal === 'common') label = "공통";
+                
+                document.getElementById('txt-version-select').innerText = label;
+                
+                post.content = cleanContent;
+                
+            } else {
+                versionContainer.classList.add('hidden');
+            }
+        }
+
+        const htmlEditor = document.getElementById('editorContentHtml');
+        const mdEditor = document.getElementById('editorContentMarkdown');
+        const tabHtml = document.getElementById('tab-html'); 
+
+        const hasHtmlTags = /<\/?(div|p|h[1-6]|ul|ol|li|blockquote|pre|table)[^>]*>/i.test(post.content);
+        const hasMarkdownSyntax = /!\[.*?\]\(.*?\)|(\*\*|__)(.*?)\1|(\*|_)(.*?)\3|(^|\n)#{1,6}\s/i.test(post.content);
+        
+        if (!hasHtmlTags && (hasMarkdownSyntax || !post.content.trim().startsWith('<'))) {
+            currentEditorMode = 'markdown';
+            
+            if (tabHtml) {
+                tabHtml.disabled = true;
+                tabHtml.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                tabHtml.title = "마크다운 형식으로 작성된 글은 HTML 편집 모드로 전환할 수 없습니다.";
+            }
+
+            window.switchEditorTab('markdown'); 
+            
+            if(mdEditor) mdEditor.value = post.content; 
+            if(htmlEditor) htmlEditor.innerHTML = '';
+            
+            if(typeof updateMarkdownPreview === 'function') updateMarkdownPreview();
+        } else {
+            currentEditorMode = 'html';
+            
+            if (tabHtml) {
+                tabHtml.disabled = false;
+                tabHtml.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
+                tabHtml.title = "";
+            }
+
+            window.switchEditorTab('html'); 
+
+            if(htmlEditor) htmlEditor.innerHTML = post.content;
+            if(mdEditor) mdEditor.value = '';
+        }
+
+        if (typeof saveTempPost === 'function') {
+            saveTempPost();
+        }
+    }, 50);
+}
+
+function resetEditor() { 
+    document.getElementById('inputTitle').value=''; 
+    document.getElementById('inputName').value=''; 
+    document.getElementById('inputPw').value=''; 
+    document.getElementById('editorContentHtml').innerHTML='';
+    editingPostId = null;
+}
+
+async function processPostImage(file, mode) {
+    try {
+        if(typeof showGlobalLoader === 'function') showGlobalLoader(true);
+        
+        if (!isAdmin) {
+            let currentImageCount = 0;
+            if (mode === 'html') {
+                const editor = document.getElementById('editorContentHtml');
+                if (editor) currentImageCount = editor.getElementsByTagName('img').length;
+            } else {
+                const md = document.getElementById('editorContentMarkdown');
+                const matches = md.match(/!\[.*?\]\(.*?\)/g);
+                currentImageCount = matches ? matches.length : 0;
+            }
+
+            if (currentImageCount >= 5) {
+                if(typeof showAlert === 'function') showAlert("게시글에는 이미지를 최대 5장까지만 첨부할 수 있습니다.");
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                if(typeof showAlert === 'function') showAlert("이미지 용량은 10MB를 초과할 수 없습니다.");
+                return;
+            }
+        }
+
+        let imageUrl = null;
+        if (typeof uploadImage === 'function') {
+             try {
+                 imageUrl = await uploadImage(file);
+             } catch(e) {
+                 console.error("Upload failed, falling back to local URL", e);
+             }
+        }
+        if (!imageUrl) {
+             imageUrl = URL.createObjectURL(file);
+        }
+
+        if (mode === 'html') {
+             if (typeof window.insertHtmlAtCursor === 'function') {
+                const imgHtml = `<img src="${imageUrl}" style="max-width:100%; margin: 10px 0; display: block;"><p><br></p>`;
+                window.insertHtmlAtCursor(imgHtml);
+             }
+        } else {
+             const mdText = document.getElementById('editorContentMarkdown');
+             const start = mdText.selectionStart;
+             const end = mdText.selectionEnd;
+             const text = mdText.value;
+             const newText = text.substring(0, start) + `\n![이미지](${imageUrl})\n` + text.substring(end);
+             mdText.value = newText;
+             if(typeof updateMarkdownPreview === 'function') updateMarkdownPreview();
+        }
+    } catch (e) {
+        if(typeof openAlert === 'function') openAlert('업로드 실패', e.message);
+    } finally {
+        if(typeof showGlobalLoader === 'function') showGlobalLoader(false);
+    }
+}
