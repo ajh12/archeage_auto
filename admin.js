@@ -642,3 +642,46 @@ window.executeCategoryMove = async function() {
         }
     }
 };
+
+window.tryAdminLogin = async () => {
+    const e = document.getElementById('adminEmail').value;
+    const p = document.getElementById('adminPw').value;
+    const dbClient = getDbClient();
+    if(dbClient) {
+        const { data, error } = await dbClient.auth.signInWithPassword({ email: e, password: p });
+        if(error) showAlert('로그인 실패: ' + error.message);
+        else { 
+            document.getElementById('adminModal').classList.add('hidden'); 
+            showAlert("로그인 성공"); 
+            document.getElementById('adminEmail').value = '';
+            document.getElementById('adminPw').value = '';
+        }
+    } else {
+        showAlert('DB 연결 오류');
+    }
+};
+
+window.adminLogout = () => {
+    showConfirm('로그아웃 하시겠습니까?', async () => { 
+        const dbClient = getDbClient();
+        if(dbClient) await dbClient.auth.signOut();
+        isAdmin = false;
+        updateAdminUI(isAdmin, loadSavedNickname);
+        window.router('home');
+        showAlert("로그아웃 되었습니다.");
+    }, "로그아웃", "로그아웃");
+};
+
+window.switchAdminTab = switchAdminTab;
+window.toggleSelectAll = toggleSelectAll;
+window.restorePost = restorePost;
+window.permanentlyDeletePost = permanentlyDeletePost;
+window.restoreComment = restoreComment;
+window.permanentlyDeleteComment = permanentlyDeleteComment;
+window.adminSearchByIp = adminSearchByIp;
+window.clearReports = clearReports;
+window.removeBan = removeBan;
+window.addBan = addBan;
+window.deleteSelected = (type) => {
+    showAlert("기능 준비 중입니다."); 
+};
