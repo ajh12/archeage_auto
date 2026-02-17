@@ -264,3 +264,88 @@ async function deleteComment(id) {
         }
     }
 }
+
+function renderCommentImagePreview() {
+    const container = document.getElementById('cmtImagePreview');
+    if (!container) return;
+
+    container.innerHTML = '';
+    
+    if (typeof currentCommentImages === 'undefined' || currentCommentImages.length === 0) {
+        container.classList.add('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    container.className = "cmt-preview-container flex flex-wrap gap-2 mt-2"; 
+
+    currentCommentImages.forEach((src, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = "relative inline-block";
+        
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = "w-20 h-20 object-cover rounded-md border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-90 transition";
+        img.onclick = () => window.openLightbox(src);
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = "absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600 transition z-10";
+        removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeBtn.title = "이미지 삭제";
+        removeBtn.onclick = (e) => {
+            e.stopPropagation();
+            if(typeof window.removeCommentImage === 'function') {
+                window.removeCommentImage(index);
+            }
+        };
+        
+        wrapper.appendChild(img);
+        wrapper.appendChild(removeBtn);
+        container.appendChild(wrapper);
+    });
+}
+
+async function processCommentImages(files, currentImages, renderCallback) {
+    if (!files || files.length === 0) return;
+    
+    if (currentImages.length + files.length > 5) {
+        return showAlert("댓글에는 이미지를 최대 5장까지만 첨부할 수 있습니다.");
+    }
+
+    if (typeof showGlobalLoader === 'function') showGlobalLoader(true);
+
+    try {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showAlert(`파일 '${file.name}'의 용량이 10MB를 초과하여 제외되었습니다.`);
+                continue;
+            }
+
+            let imageUrl = null;
+            if (typeof window.uploadImage === 'function') {
+                 try {
+                     imageUrl = await window.uploadImage(file);
+                 } catch(e) {
+                     console.error("Upload failed, falling back to local URL", e);
+                     imageUrl = URL.createObjectURL(file);
+                 }
+            } else {
+                 imageUrl = URL.createObjectURL(file);
+            }
+
+            if (imageUrl) {
+                currentImages.push(imageUrl);
+            }
+        }
+    } catch (e) {
+        console.error("Image processing error:", e);
+        showAlert("이미지 처리 중 오류가 발생했습니다.");
+    } finally {
+        if (typeof showGlobalLoader === 'function') showGlobalLoader(false);
+        if (renderCallback && typeof renderCallback === 'function') {
+            renderCallback();
+        }
+    }
+}
