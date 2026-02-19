@@ -11,7 +11,7 @@ const TOP_NOTICE = {
     textColor: "#ffffff"
 };
 
-window.ENABLE_SNOW = true;
+window.ENABLE_SNOW = false;
 const PAGE_SIZE = 10;
 const ADMIN_PAGE_SIZE = 10;
 
