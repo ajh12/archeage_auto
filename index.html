@@ -69,10 +69,10 @@
 
     <nav class="sticky top-0 z-50 glass-nav shadow-sm dark:bg-black/90 dark:border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16 md:h-20">
+            <div class="flex items-center justify-between h-14 md:h-16">
                 <div class="flex items-center cursor-pointer group" onclick="confirmNavigation('home')">
-                    <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20 group-hover:scale-105 transition">
-                        <i class="fa-solid fa-cube text-white text-lg"></i>
+                    <div class="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center mr-2.5 shadow-lg shadow-blue-500/20 group-hover:scale-105 transition">
+                        <i class="fa-solid fa-cube text-white text-base"></i>
                     </div>
                     <span class="font-bold text-xl tracking-tight text-slate-900 dark:text-white">하포카 해결소</span>
                 </div>
@@ -164,9 +164,16 @@
         </div>
     </nav>
 
-    <main id="view-home" class="view-section hidden flex-grow">
-        <section class="relative pt-16 pb-20 text-center px-4 md:pt-24">
-            <div class="max-w-4xl mx-auto mb-16">
+        <main id="view-home" class="view-section hidden flex-grow">
+        <section class="home-video-hero relative overflow-hidden">
+            <div class="home-hero-fallback" aria-hidden="true"></div>
+            <video class="home-hero-video" autoplay muted loop playsinline preload="metadata" onerror="this.style.display='none'">
+                <source src="assets/demo.mp4" type="video/mp4">
+            </video>
+            <div class="home-hero-overlay" aria-hidden="true"></div>
+
+            <div class="relative z-10 mx-auto max-w-5xl px-4 text-center">
+<div class="max-w-4xl mx-auto mb-16">
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-bold mb-6">
                     <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                     <span id="version-text">v0.1 업데이트 확인 중...</span>
@@ -183,8 +190,25 @@
                     <button onclick="goDownload()" class="px-6 py-3 rounded-xl bg-white dark:bg-black border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm">다운로드</button>
                 </div>
             </div>
-            
-            <div class="max-w-5xl mx-auto relative group">
+            </div>
+        </section>
+
+        <section class="home-content-block home-content-block--youtube px-4 py-16 md:py-20">
+            <div class="max-w-6xl mx-auto">
+                <div class="home-section-head">
+                    <h2 class="home-section-title">YouTube 영상</h2>
+                </div>
+                <div id="yt-mosaic-grid" class="yt-mosaic-grid"></div>
+            </div>
+        </section>
+
+        <section class="home-content-block home-content-block--program px-4 pb-20">
+            <div class="max-w-6xl mx-auto">
+                <div class="home-section-head">
+                    <h2 class="home-section-title">자동 구축 프로그램</h2>
+                    <p class="home-section-desc">단계별 진행 화면을 미리 확인할 수 있습니다.</p>
+                </div>
+<div class="max-w-5xl mx-auto relative group">
                 <div class="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000"></div>
                 <div class="program-window relative text-left mx-auto transform transition duration-500 hover:scale-[1.01]">
                     <div class="program-titlebar">
@@ -216,6 +240,16 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            </div>
+        </section>
+
+        <section class="home-content-block home-content-block--error-ticker px-4 pb-24">
+            <div class="max-w-6xl mx-auto">
+                <div class="home-section-head">
+                    <h2 class="home-section-title">최신 오류 질문</h2>
+                </div>
+                <div id="error-ticker" class="error-ticker"></div>
             </div>
         </section>
     </main>
