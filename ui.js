@@ -63,6 +63,13 @@ window.uiRouter = function(page, isAdmin) {
         }
     }
 
+    if (page === 'home' && typeof window.renderYoutubeMosaic === 'function') {
+        window.renderYoutubeMosaic();
+    }
+    if (page === 'home' && typeof window.renderHomeErrorTicker === 'function') {
+        window.renderHomeErrorTicker();
+    }
+
     if (page === 'write' && typeof window.loadTempPost === 'function') {
         window.loadTempPost();
     }
@@ -309,6 +316,355 @@ window.toggleSelectAll = function(type, isChecked) {
 
 window.goDownload = function() {
     window.open('https://github.com/Pretsg/Archeage_auto/releases', '_blank');
+};
+
+var ytMosaicState = {
+    isLoading: false
+};
+
+function getYouTubeVideoId(url) {
+    try {
+        var parsed = new URL(url);
+        var host = parsed.hostname.toLowerCase();
+
+        if (host.indexOf('youtu.be') !== -1) {
+            return (parsed.pathname.split('/').filter(Boolean)[0] || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        }
+
+        if (host.indexOf('youtube.com') !== -1 || host.indexOf('youtube-nocookie.com') !== -1) {
+            var watchId = parsed.searchParams.get('v');
+            if (watchId) return watchId.replace(/[^a-zA-Z0-9_-]/g, '');
+
+            var parts = parsed.pathname.split('/').filter(Boolean);
+            if (parts.length > 1 && (parts[0] === 'embed' || parts[0] === 'shorts' || parts[0] === 'live')) {
+                return parts[1].replace(/[^a-zA-Z0-9_-]/g, '');
+            }
+        }
+    } catch (e) {}
+
+    return '';
+}
+
+function getYouTubeFallbackTitle(videoId) {
+    return videoId || 'YouTube 영상';
+}
+
+async function fetchYouTubeTitle(videoUrl, fallbackTitle) {
+    var timeoutId = null;
+    var controller = null;
+
+    try {
+        if (typeof AbortController !== 'undefined') {
+            controller = new AbortController();
+            timeoutId = setTimeout(function() {
+                controller.abort();
+            }, 4500);
+        }
+
+        var response = await fetch(
+            'https://www.youtube.com/oembed?url=' + encodeURIComponent(videoUrl) + '&format=json',
+            controller ? { signal: controller.signal } : undefined
+        );
+
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!response.ok) return fallbackTitle;
+
+        var data = await response.json();
+        if (data && typeof data.title === 'string' && data.title.trim()) {
+            return data.title.trim();
+        }
+    } catch (e) {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+
+    return fallbackTitle;
+}
+
+function createYouTubeMosaicCard(item, index, videoId) {
+    var fallbackTitle = getYouTubeFallbackTitle(videoId);
+    var card = document.createElement('a');
+    card.className = 'yt-mosaic-card yt-card-' + (index + 1);
+    card.href = item.url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+
+    var thumbWrap = document.createElement('div');
+    thumbWrap.className = 'yt-thumb-wrap';
+
+    var img = document.createElement('img');
+    img.loading = 'lazy';
+    img.src = 'https://img.youtube.com/vi/' + videoId + '/hqdefault.jpg';
+    img.alt = fallbackTitle + ' 썸네일';
+
+    var playBadge = document.createElement('span');
+    playBadge.className = 'yt-play-badge';
+    playBadge.innerHTML = '<i class="fa-solid fa-play"></i> 재생';
+
+    thumbWrap.appendChild(img);
+    thumbWrap.appendChild(playBadge);
+
+    var body = document.createElement('div');
+    body.className = 'yt-card-body';
+
+    if (typeof item.tag === 'string' && item.tag.trim()) {
+        var tag = document.createElement('p');
+        tag.className = 'yt-card-tag';
+        tag.textContent = item.tag.trim();
+        body.appendChild(tag);
+    }
+
+    var titleEl = document.createElement('h3');
+    titleEl.className = 'yt-card-title';
+    titleEl.textContent = fallbackTitle;
+    body.appendChild(titleEl);
+
+    card.appendChild(thumbWrap);
+    card.appendChild(body);
+
+    fetchYouTubeTitle(item.url, fallbackTitle).then(function(title) {
+        titleEl.textContent = title;
+        img.alt = title + ' 썸네일';
+    });
+
+    return card;
+}
+
+window.renderYoutubeMosaic = async function() {
+    var grid = document.getElementById('yt-mosaic-grid');
+    if (!grid || grid.dataset.loaded === 'true' || ytMosaicState.isLoading) return;
+
+    ytMosaicState.isLoading = true;
+
+    try {
+        var remoteUrl = 'https://raw.githubusercontent.com/ajh12/archeage_auto/main/youtube-videos.json';
+        var localUrl = 'youtube-videos.json';
+        var response;
+
+        try {
+            response = await fetch(remoteUrl, { cache: 'no-store' });
+            if (!response.ok) throw new Error('remote video list fetch failed');
+        } catch (remoteError) {
+            response = await fetch(localUrl, { cache: 'no-store' });
+            if (!response.ok) throw new Error('local video list fetch failed');
+        }
+
+        var json = await response.json();
+        var list = Array.isArray(json) ? json : [];
+        var videos = list.filter(function(item) {
+            return item && typeof item.url === 'string' && item.url.trim();
+        });
+
+        grid.innerHTML = '';
+
+        videos.forEach(function(item, index) {
+            var url = item.url.trim();
+            var videoId = getYouTubeVideoId(url);
+            var card = createYouTubeMosaicCard({ url: url, tag: item.tag }, index, videoId);
+            grid.appendChild(card);
+        });
+
+        grid.dataset.loaded = 'true';
+    } catch (e) {
+        grid.innerHTML = '';
+        console.error('Failed to render YouTube mosaic:', e);
+    } finally {
+        ytMosaicState.isLoading = false;
+    }
+};
+
+function getErrorTickerTimestamp(post) {
+    if (post && post.created_at) {
+        var createdAtMs = new Date(post.created_at).getTime();
+        if (!isNaN(createdAtMs)) return createdAtMs;
+    }
+
+    if (post && post.date) {
+        var dateMs = new Date(post.date).getTime();
+        if (!isNaN(dateMs)) return dateMs;
+    }
+
+    return 0;
+}
+
+function formatErrorTickerDate(post) {
+    if (post && post.created_at) {
+        var createdAt = new Date(post.created_at);
+        if (!isNaN(createdAt.getTime())) {
+            return createdAt.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+        }
+    }
+
+    if (post && typeof post.date === 'string' && post.date.trim()) {
+        return post.date.trim();
+    }
+
+    return '';
+}
+
+function isErrorTickerType(type) {
+    var normalized = String(type || '').trim().toLowerCase();
+    return normalized === 'error' || normalized === 'list';
+}
+
+function normalizeErrorTickerPost(post) {
+    return {
+        id: post && typeof post.id !== 'undefined' ? post.id : null,
+        type: String((post && post.type) || '').trim().toLowerCase(),
+        title: String((post && post.title) || '오류 질문').trim(),
+        date: formatErrorTickerDate(post),
+        timestamp: getErrorTickerTimestamp(post)
+    };
+}
+
+function createErrorTickerCard(post) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'error-ticker-card';
+
+    var title = document.createElement('p');
+    title.className = 'error-ticker-card-title line-clamp-2';
+    title.textContent = post.title;
+
+    var meta = document.createElement('p');
+    meta.className = 'error-ticker-card-meta';
+
+    var board = document.createElement('span');
+    board.textContent = '오류해결소';
+    meta.appendChild(board);
+
+    if (post.date) {
+        var dot = document.createElement('span');
+        dot.className = 'error-ticker-card-meta-dot';
+        meta.appendChild(dot);
+
+        var date = document.createElement('span');
+        date.textContent = post.date;
+        meta.appendChild(date);
+    }
+
+    button.appendChild(title);
+    button.appendChild(meta);
+
+    button.addEventListener('click', function() {
+        var hasId = post && post.id !== null && typeof post.id !== 'undefined' && String(post.id).trim() !== '';
+        if (!hasId) {
+            var listCode = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP.list) ? ROUTE_MAP.list : 'list';
+            window.location.hash = '#' + listCode;
+            return;
+        }
+
+        if (typeof window.readPost === 'function') {
+            window.readPost(String(post.id));
+            return;
+        }
+
+        var detailCode = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP.detail) ? ROUTE_MAP.detail : 'detail';
+        window.location.hash = '#' + detailCode + '/' + post.id;
+    });
+
+    return button;
+}
+
+function renderHomeErrorTickerFallback(container, text) {
+    container.innerHTML = '';
+
+    var fallback = document.createElement('p');
+    fallback.className = 'error-ticker-empty';
+    fallback.textContent = text;
+    container.appendChild(fallback);
+}
+
+function createErrorTickerGroup(postsData) {
+    var group = document.createElement('div');
+    group.className = 'error-ticker-group';
+
+    postsData.forEach(function(post) {
+        group.appendChild(createErrorTickerCard(post));
+    });
+
+    return group;
+}
+
+async function fetchHomeErrorTickerPosts(limit) {
+    var fetchSize = Math.max(limit, 6);
+    var dbClient = typeof getDbClient === 'function' ? getDbClient() : null;
+
+    if (dbClient) {
+        try {
+            var response = await dbClient
+                .from('posts')
+                .select('id, title, created_at, type, deleted_at')
+                .in('type', ['error', 'list'])
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(fetchSize);
+
+            var dbData = response && response.data ? response.data : [];
+            var dbError = response ? response.error : null;
+            if (!dbError && Array.isArray(dbData)) {
+                return dbData.map(normalizeErrorTickerPost);
+            }
+        } catch (e) {}
+    }
+
+    var localSource = [];
+    if (typeof posts !== 'undefined' && Array.isArray(posts)) {
+        localSource = posts.slice();
+    }
+
+    if ((!localSource.length || !localSource.some(function(post) { return post && isErrorTickerType(post.type); })) && typeof loadLocalPosts === 'function') {
+        try {
+            var storedPosts = loadLocalPosts();
+            if (Array.isArray(storedPosts)) {
+                localSource = storedPosts;
+            }
+        } catch (e) {}
+    }
+
+    return localSource
+        .filter(function(post) {
+            return post && isErrorTickerType(post.type) && !post.deleted_at;
+        })
+        .sort(function(a, b) {
+            return getErrorTickerTimestamp(b) - getErrorTickerTimestamp(a);
+        })
+        .slice(0, fetchSize)
+        .map(normalizeErrorTickerPost);
+}
+
+window.renderHomeErrorTicker = async function() {
+    var container = document.getElementById('error-ticker');
+    if (!container || container.dataset.loading === 'true') return;
+
+    container.dataset.loading = 'true';
+
+    try {
+        var items = await fetchHomeErrorTickerPosts(6);
+        if (!Array.isArray(items) || items.length === 0) {
+            renderHomeErrorTickerFallback(container, '오류 질문을 불러오지 못했습니다.');
+            return;
+        }
+
+        container.innerHTML = '';
+
+        var viewport = document.createElement('div');
+        viewport.className = 'error-ticker-viewport';
+
+        var track = document.createElement('div');
+        track.className = 'error-ticker-track';
+        track.setAttribute('aria-label', '최신 오류 질문 티커');
+
+        var tickerItems = items.slice(0, 6);
+        track.appendChild(createErrorTickerGroup(tickerItems));
+        track.appendChild(createErrorTickerGroup(tickerItems));
+
+        viewport.appendChild(track);
+        container.appendChild(viewport);
+    } catch (e) {
+        renderHomeErrorTickerFallback(container, '오류 질문을 불러오지 못했습니다.');
+    } finally {
+        container.dataset.loading = 'false';
+    }
 };
 
 window.renderPostList = function(postsData, containerId, viewMode, currentBoardType, isAdmin) {
@@ -845,6 +1201,12 @@ window.renderTopNotification = async function() {
 
 document.addEventListener('DOMContentLoaded', function() {
     window.renderTopNotification();
+    if (typeof window.renderYoutubeMosaic === 'function') {
+        window.renderYoutubeMosaic();
+    }
+    if (typeof window.renderHomeErrorTicker === 'function') {
+        window.renderHomeErrorTicker();
+    }
 });
 
 window.toggleMobileMenu = () => {
