@@ -4,20 +4,27 @@
 
 html,
 body {
+    margin: 0;
+    padding: 0;
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
 }
 
 body { 
-    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    padding: 0 !important;
     font-family: 'Pretendard', sans-serif; 
+    -webkit-text-size-adjust: 100%;
     -webkit-user-select: none; 
     user-select: none; 
 }
 
 :root {
     --ticker-duration: 15s;
+    --safe-area-top: env(safe-area-inset-top, 0px);
 }
 
 
@@ -627,10 +634,22 @@ button, nav, .menu {
 }
 
 #top-notice-bar {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0 !important;
+    margin-top: 0 !important;
+    padding-top: calc(var(--safe-area-top) + 0.5rem) !important;
+    padding-bottom: 0.5rem !important;
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body > nav {
+    top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
 }
 
 .dark ::-webkit-scrollbar-track { background: #121212; }
@@ -639,11 +658,13 @@ button, nav, .menu {
 
 .home-video-hero {
     position: relative;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    transform: none;
     width: 100%;
     max-width: 100%;
     min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
