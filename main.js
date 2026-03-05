@@ -261,6 +261,18 @@ if (!window.hasMainJsRun) {
     let bgmWasMobileViewport = false;
     let bgmRepeatMode = 'off';
     let bgmSeekDragging = false;
+    let bgmSeekLastClientX = null;
+    let bgmSeekMoveListenersArmed = false;
+    let bgmSeekDragEndUiTimer = 0;
+    let bgmSeekIgnoreSliderCommitUntil = 0;
+    let bgmPendingSeekTime = null;
+    let bgmSeekRetryTimer = 0;
+    let bgmSeekRetryAttempts = 0;
+    let bgmSeekRetryStartedAt = 0;
+    let bgmPendingSeekStatusShown = false;
+    let bgmPendingSeekWasPlaying = false;
+    let bgmPendingSeekResumeDeadline = 0;
+    let bgmPendingSeekResumeArmed = false;
     let bgmUnlockArmed = false;
     let bgmCurrentTrackHovering = false;
     let bgmHoveredTrackIndex = -1;
@@ -272,6 +284,18 @@ if (!window.hasMainJsRun) {
     let bgmLastScrollY = 0;
     let bgmCoverRequestToken = 0;
     let bgmMarqueeRaf = 0;
+    let bgmProgressRaf = 0;
+    let bgmProgressInterval = 0;
+    let bgmProgressIntervalStartedAt = 0;
+    const BGM_PROGRESS_INTERVAL_MS = 250;
+    const BGM_PROGRESS_INTERVAL_MAX_MS = 5000;
+
+    // Seeking can get stuck forever on streaming sources that don't support random access (HTTP Range).
+    // Keep retries bounded to avoid log spam / busy loops.
+    const BGM_SEEK_RETRY_MAX_ATTEMPTS = 30;
+    const BGM_SEEK_RETRY_MAX_MS = 4000;
+    const BGM_SEEK_USER_RESUME_WINDOW_MS = 2500;
+
     const BGM_STATUS_STARTING = '\uC7AC\uC0DD \uC2DC\uC791...';
     const bgmCoverCacheByLibrary = {
         bgm: new Map(),
@@ -337,6 +361,250 @@ if (!window.hasMainJsRun) {
         return bgmAudioEl.paused ? '일시정지' : '재생 중';
     };
 
+    const bgmDebugEnabled = () => Boolean(window.__AA_BGM_DEBUG__);
+
+    const debugLog = (...args) => {
+        if (!bgmDebugEnabled()) return;
+        // `console.debug` is often filtered out in DevTools. Use `console.log` for reliability.
+        console.log('[BGM]', ...args);
+    };
+
+    let bgmDebugLastTimeupdateLogAt = 0;
+    const debugLogThrottled = (minIntervalMs, ...args) => {
+        if (!bgmDebugEnabled()) return;
+        const now = window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now();
+        if (now - bgmDebugLastTimeupdateLogAt < minIntervalMs) return;
+        bgmDebugLastTimeupdateLogAt = now;
+        console.log('[BGM]', ...args);
+    };
+
+    const formatTimeRangesForLog = (ranges) => {
+        try {
+            if (!ranges || typeof ranges.length !== 'number') return [];
+            const result = [];
+            for (let i = 0; i < ranges.length; i += 1) {
+                const start = ranges.start(i);
+                const end = ranges.end(i);
+                if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+                result.push([Number(start.toFixed(3)), Number(end.toFixed(3))]);
+            }
+            return result;
+        } catch (_error) {
+            return [];
+        }
+    };
+
+    const timeRangesContain = (ranges, targetTime) => {
+        if (!ranges || typeof ranges.length !== 'number' || ranges.length <= 0) return false;
+        for (let index = 0; index < ranges.length; index += 1) {
+            const rangeStart = ranges.start(index);
+            const rangeEnd = ranges.end(index);
+            if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) continue;
+            if (targetTime >= rangeStart && targetTime <= rangeEnd) return true;
+        }
+        return false;
+    };
+
+    const canBgmSeekToTime = (targetTime) => {
+        if (!bgmAudioEl || !Number.isFinite(targetTime) || targetTime < 0) return false;
+
+        const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+        const clampedTarget = Math.max(0, duration > 0 ? Math.min(targetTime, duration) : targetTime);
+
+        // IMPORTANT: Do not trust `duration` alone for streaming sources.
+        // If the server does not support HTTP Range requests, the browser can reject early seeks
+        // (often snapping back to 0). Only seek when the element reports a seekable/buffered range.
+        if (timeRangesContain(bgmAudioEl.seekable, clampedTarget)) return true;
+        if (timeRangesContain(bgmAudioEl.buffered, clampedTarget)) return true;
+
+        return false;
+    };
+
+    const stopBgmSeekRetry = () => {
+        if (bgmSeekRetryTimer) {
+            window.clearTimeout(bgmSeekRetryTimer);
+            bgmSeekRetryTimer = 0;
+        }
+        bgmSeekRetryAttempts = 0;
+        bgmSeekRetryStartedAt = 0;
+        bgmPendingSeekStatusShown = false;
+    };
+
+    const cancelPendingSeek = (reason, options) => {
+        if (!Number.isFinite(bgmPendingSeekTime)) return;
+        const resolvedOptions = options || {};
+        debugLog('cancel pending seek', { reason, pendingSeekTime: bgmPendingSeekTime });
+        bgmPendingSeekTime = null;
+        bgmPendingSeekWasPlaying = false;
+        bgmPendingSeekResumeDeadline = 0;
+        bgmPendingSeekResumeArmed = false;
+        stopBgmSeekRetry();
+        if (resolvedOptions.statusText) {
+            setBgmStatus(resolvedOptions.statusText);
+        }
+        setBgmTimeUi({ force: true });
+    };
+
+    const queueBgmSeekRetry = () => {
+        if (!bgmAudioEl || !Number.isFinite(bgmPendingSeekTime)) return;
+        if (bgmSeekRetryTimer) return;
+
+        const now = window.performance && typeof window.performance.now === 'function'
+            ? window.performance.now()
+            : Date.now();
+
+        if (!bgmSeekRetryStartedAt) {
+            bgmSeekRetryStartedAt = now;
+        }
+
+        const attempt = Math.max(0, Math.trunc(bgmSeekRetryAttempts));
+        const elapsed = now - bgmSeekRetryStartedAt;
+
+        if (attempt >= BGM_SEEK_RETRY_MAX_ATTEMPTS || elapsed >= BGM_SEEK_RETRY_MAX_MS) {
+            cancelPendingSeek('retry limit exceeded', {
+                statusText: '이 트랙은 아직 해당 구간으로 이동할 수 없습니다.'
+            });
+            return;
+        }
+
+        // Backoff a little to avoid spamming the media pipeline.
+        const delayMs = Math.min(1200, 120 + attempt * 60);
+
+        bgmSeekRetryTimer = window.setTimeout(() => {
+            bgmSeekRetryTimer = 0;
+            applyPendingSeek();
+        }, delayMs);
+    };
+
+    const applyPendingSeek = () => {
+        if (!bgmAudioEl || !Number.isFinite(bgmPendingSeekTime)) return;
+
+        const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+        const targetTime = Math.max(0, duration > 0 ? Math.min(bgmPendingSeekTime, duration) : bgmPendingSeekTime);
+
+        const perfNow = window.performance && typeof window.performance.now === 'function'
+            ? window.performance.now()
+            : Date.now();
+
+        if (!bgmSeekRetryStartedAt) {
+            bgmSeekRetryStartedAt = perfNow;
+        }
+
+        const attempt = Math.max(0, Math.trunc(bgmSeekRetryAttempts));
+        const elapsed = perfNow - bgmSeekRetryStartedAt;
+        if (attempt >= BGM_SEEK_RETRY_MAX_ATTEMPTS || elapsed >= BGM_SEEK_RETRY_MAX_MS) {
+            cancelPendingSeek('retry limit exceeded (apply)', {
+                statusText: '이 트랙은 아직 해당 구간으로 이동할 수 없습니다.'
+            });
+            return;
+        }
+
+        debugLogThrottled(400, 'applyPendingSeek attempt', {
+            pendingSeekTime: bgmPendingSeekTime,
+            targetTime,
+            duration,
+            attempts: bgmSeekRetryAttempts,
+            elapsedMs: Math.round(elapsed),
+            currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+            paused: bgmAudioEl.paused,
+            readyState: bgmAudioEl.readyState,
+            networkState: bgmAudioEl.networkState,
+            seekable: formatTimeRangesForLog(bgmAudioEl.seekable),
+            buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+        });
+
+        if (!canBgmSeekToTime(targetTime)) {
+            bgmSeekRetryAttempts += 1;
+
+            if (bgmEnabled && !bgmPendingSeekStatusShown) {
+                setBgmStatus('버퍼링 중…(시킹 대기)');
+                bgmPendingSeekStatusShown = true;
+            }
+
+            debugLogThrottled(700, 'seek pending (not seekable yet)', {
+                targetTime,
+                duration,
+                attempts: bgmSeekRetryAttempts,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState,
+                seekable: formatTimeRangesForLog(bgmAudioEl.seekable),
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+            });
+            queueBgmSeekRetry();
+            setBgmTimeUi({ force: true });
+            return;
+        }
+
+        // Do NOT clear `bgmPendingSeekTime` until we confirm that the media element
+        // actually moved. Some browsers accept the assignment but immediately snap
+        // back to 0 while `readyState` is still low.
+
+        try {
+            const method = typeof bgmAudioEl.fastSeek === 'function' ? 'fastSeek' : 'currentTime';
+            if (method === 'fastSeek') {
+                bgmAudioEl.fastSeek(targetTime);
+            } else {
+                bgmAudioEl.currentTime = targetTime;
+            }
+
+            const afterCurrentTime = Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null;
+            const delta = Number.isFinite(afterCurrentTime) ? Math.abs(afterCurrentTime - targetTime) : null;
+            const stuck = !(Number.isFinite(delta) && delta <= 0.25);
+
+            debugLog('seek applied', {
+                method,
+                targetTime,
+                afterCurrentTime,
+                delta,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+
+            if (stuck) {
+                bgmSeekRetryAttempts += 1;
+                debugLog('seek pending (seek did not stick yet)', {
+                    targetTime,
+                    afterCurrentTime,
+                    delta,
+                    attempts: bgmSeekRetryAttempts,
+                    readyState: bgmAudioEl.readyState,
+                    networkState: bgmAudioEl.networkState
+                });
+                // Keep pending seek time and retry via backoff.
+                bgmPendingSeekTime = targetTime;
+                queueBgmSeekRetry();
+            } else {
+                stopBgmSeekRetry();
+                bgmPendingSeekTime = null;
+
+                if (bgmPendingSeekResumeArmed && bgmPendingSeekWasPlaying && bgmEnabled) {
+                    const now = window.performance && typeof window.performance.now === 'function'
+                        ? window.performance.now()
+                        : Date.now();
+                    const withinWindow = bgmPendingSeekResumeDeadline && now <= bgmPendingSeekResumeDeadline;
+                    if (withinWindow && bgmAudioEl.paused) {
+                        debugLog('resume after seek (user-initiated window)');
+                        void bgmAudioEl.play().catch((error) => {
+                            debugLog('resume after seek failed', error);
+                        });
+                    }
+                }
+
+                bgmPendingSeekWasPlaying = false;
+                bgmPendingSeekResumeDeadline = 0;
+                bgmPendingSeekResumeArmed = false;
+            }
+        } catch (error) {
+            bgmSeekRetryAttempts += 1;
+            debugLog('seek attempt failed', error);
+            // Keep pending seek and retry later.
+            bgmPendingSeekTime = targetTime;
+            queueBgmSeekRetry();
+        }
+
+        setBgmTimeUi({ force: true });
+    };
+
     const setBgmTimeUi = (options) => {
         if (!bgmAudioEl) return;
         const resolvedOptions = options || {};
@@ -345,18 +613,79 @@ if (!window.hasMainJsRun) {
 
         const currentTime = Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : 0;
         const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
-        const progressPercent = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
+        const hasKnownDuration = duration > 0;
+        const sliderPreviewValue = bgmSeekDragging && bgmSeekSlider ? Number(bgmSeekSlider.value) : NaN;
+        const pendingValue = !bgmSeekDragging && Number.isFinite(bgmPendingSeekTime) ? bgmPendingSeekTime : NaN;
+        const sliderBaseValue = Number.isFinite(sliderPreviewValue)
+            ? sliderPreviewValue
+            : (Number.isFinite(pendingValue) ? pendingValue : currentTime);
+        const sliderMax = hasKnownDuration ? duration : Math.max(300, currentTime + 1, sliderBaseValue + 1);
+        const sliderValue = Math.max(0, Math.min(sliderBaseValue, sliderMax));
+        const progressPercent = sliderMax > 0 ? Math.max(0, Math.min(100, (sliderValue / sliderMax) * 100)) : 0;
 
         if (bgmTimeDisplayEl) {
-            bgmTimeDisplayEl.textContent = `${formatBgmTime(currentTime)} / ${formatBgmTime(duration)}`;
+            const displayTime = !bgmSeekDragging && Number.isFinite(bgmPendingSeekTime) ? bgmPendingSeekTime : currentTime;
+            bgmTimeDisplayEl.textContent = `${formatBgmTime(displayTime)} / ${formatBgmTime(duration)}`;
         }
 
         if (bgmSeekSlider) {
-            bgmSeekSlider.max = duration > 0 ? String(duration) : '0';
-            bgmSeekSlider.value = String(duration > 0 ? Math.min(currentTime, duration) : 0);
-            bgmSeekSlider.disabled = duration <= 0;
+            bgmSeekSlider.max = String(sliderMax);
+            bgmSeekSlider.value = String(sliderValue);
+            bgmSeekSlider.disabled = !BGM_TRACKS.length;
             bgmSeekSlider.style.setProperty('--bgm-progress-percent', `${progressPercent.toFixed(2)}%`);
         }
+    };
+
+    const stopBgmProgressRaf = () => {
+        if (!bgmProgressRaf) return;
+        window.cancelAnimationFrame(bgmProgressRaf);
+        bgmProgressRaf = 0;
+    };
+
+    const stopBgmProgressInterval = () => {
+        if (!bgmProgressInterval) return;
+        window.clearInterval(bgmProgressInterval);
+        bgmProgressInterval = 0;
+        bgmProgressIntervalStartedAt = 0;
+    };
+
+    const startBgmProgressInterval = () => {
+        if (!bgmAudioEl || bgmAudioEl.paused || bgmAudioEl.ended || bgmProgressInterval) return;
+        const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+        if (duration > 0) return;
+
+        bgmProgressIntervalStartedAt = window.performance.now();
+        setBgmTimeUi();
+        bgmProgressInterval = window.setInterval(() => {
+            if (!bgmAudioEl || bgmAudioEl.paused || bgmAudioEl.ended) {
+                stopBgmProgressInterval();
+                return;
+            }
+
+            setBgmTimeUi();
+            const knownDuration = Number.isFinite(bgmAudioEl.duration) && bgmAudioEl.duration > 0;
+            const elapsed = window.performance.now() - bgmProgressIntervalStartedAt;
+            if (knownDuration || elapsed >= BGM_PROGRESS_INTERVAL_MAX_MS) {
+                stopBgmProgressInterval();
+            }
+        }, BGM_PROGRESS_INTERVAL_MS);
+    };
+
+    const startBgmProgressRaf = () => {
+        if (!bgmAudioEl || bgmProgressRaf) return;
+
+        const run = () => {
+            if (!bgmAudioEl || bgmAudioEl.paused || bgmAudioEl.ended) {
+                bgmProgressRaf = 0;
+                return;
+            }
+
+            setBgmTimeUi();
+            bgmProgressRaf = window.requestAnimationFrame(run);
+        };
+
+        if (bgmAudioEl.paused || bgmAudioEl.ended) return;
+        bgmProgressRaf = window.requestAnimationFrame(run);
     };
 
     const setBgmStatus = (text) => {
@@ -818,6 +1147,8 @@ if (!window.hasMainJsRun) {
         if (!selectedTrack) return;
         const shouldAutoplay = Boolean(resolvedOptions.autoplay);
         const resetTime = Boolean(resolvedOptions.resetTime);
+        bgmPendingSeekTime = null;
+        stopBgmSeekRetry();
 
         bgmTrackIndex = normalizedIndex;
         bgmTrackIndicesByLibrary[bgmLibrary] = bgmTrackIndex;
@@ -830,11 +1161,29 @@ if (!window.hasMainJsRun) {
         const currentSrc = bgmAudioEl.getAttribute('src');
         const srcChanged = currentSrc !== selectedTrack.src;
         if (srcChanged) {
+            debugLog('setTrack src change', {
+                library: bgmLibrary,
+                index: normalizedIndex,
+                from: currentSrc,
+                to: selectedTrack.src,
+                resetTime,
+                beforeCurrentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null
+            });
             bgmAudioEl.setAttribute('src', selectedTrack.src);
+            debugLog('audio.load() after src change');
             bgmAudioEl.load();
         }
         if (resetTime && !srcChanged) {
+            debugLog('setTrack reset currentTime=0 (src unchanged)', {
+                library: bgmLibrary,
+                index: normalizedIndex,
+                src: currentSrc,
+                beforeCurrentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null
+            });
             bgmAudioEl.currentTime = 0;
+            debugLog('setTrack currentTime set to 0 (src unchanged)', {
+                afterCurrentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null
+            });
         }
 
         setBgmTrackUi();
@@ -872,6 +1221,7 @@ if (!window.hasMainJsRun) {
 
         if (!BGM_TRACKS.length) {
             if (bgmAudioEl) {
+                debugLog('switchLibrary: no tracks, clearing src');
                 bgmAudioEl.pause();
                 bgmAudioEl.removeAttribute('src');
                 bgmAudioEl.load();
@@ -896,6 +1246,9 @@ if (!window.hasMainJsRun) {
         }
 
         if (!Number.isFinite(bgmAudioEl.currentTime) || bgmAudioEl.currentTime < 0) {
+            debugLog('syncBgmTrackBeforePlaybackStart: currentTime invalid, forcing 0', {
+                beforeCurrentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null
+            });
             bgmAudioEl.currentTime = 0;
         }
     };
@@ -919,6 +1272,9 @@ if (!window.hasMainJsRun) {
         try {
             await bgmAudioEl.play();
             removeBgmUnlockListeners();
+            startBgmProgressRaf();
+            startBgmProgressInterval();
+            setBgmTimeUi({ force: true });
             setBgmStatus(getBgmStatusText());
             setBgmPlayPauseUi();
             return true;
@@ -941,6 +1297,9 @@ if (!window.hasMainJsRun) {
         if (!bgmAudioEl || !BGM_TRACKS.length) return;
 
         if (bgmRepeatMode === 'one') {
+            debugLog('ended: repeat one -> currentTime=0', {
+                beforeCurrentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null
+            });
             bgmAudioEl.currentTime = 0;
             if (bgmEnabled) {
                 void tryStartBgm();
@@ -967,6 +1326,12 @@ if (!window.hasMainJsRun) {
     };
 
     const initBgmControls = () => {
+        debugLog('initBgmControls start');
+        if (window.__AA_BGM_INIT__) {
+            debugLog('initBgmControls skipped (already initialized)');
+            return;
+        }
+        window.__AA_BGM_INIT__ = true;
         bgmAudioEl = document.getElementById('bgm-audio');
         bgmWidgetEl = document.getElementById('bgm-widget');
         bgmToggleBtn = document.getElementById('bgm-toggle-btn');
@@ -1040,26 +1405,158 @@ if (!window.hasMainJsRun) {
         bgmLastScrollY = window.scrollY || window.pageYOffset || 0;
 
         bgmAudioEl.addEventListener('play', () => {
+            debugLog('event: play', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState,
+                src: bgmAudioEl.getAttribute('src')
+            });
+            startBgmProgressRaf();
+            startBgmProgressInterval();
             if (bgmEnabled) setBgmStatus(getBgmStatusText());
             setBgmPlayPauseUi();
         });
+        // Some browsers may fire `play` before `currentTime` starts advancing.
+        // Ensure the progress UI loop is running once playback actually begins.
+        bgmAudioEl.addEventListener('playing', () => {
+            debugLog('event: playing', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+            startBgmProgressRaf();
+            startBgmProgressInterval();
+            setBgmTimeUi({ force: true });
+        });
         bgmAudioEl.addEventListener('pause', () => {
+            debugLog('event: pause', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+            stopBgmProgressRaf();
+            stopBgmProgressInterval();
             if (bgmEnabled) setBgmStatus(getBgmStatusText());
             setBgmPlayPauseUi();
         });
         bgmAudioEl.addEventListener('loadedmetadata', () => {
+            debugLog('event: loadedmetadata', {
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                seekable: formatTimeRangesForLog(bgmAudioEl.seekable),
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+            });
+            applyPendingSeek();
+            setBgmTimeUi({ force: true });
+        });
+        bgmAudioEl.addEventListener('loadeddata', () => {
+            debugLog('event: loadeddata', {
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState,
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+            });
+            applyPendingSeek();
+            setBgmTimeUi({ force: true });
+        });
+        bgmAudioEl.addEventListener('canplay', () => {
+            debugLog('event: canplay', {
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState,
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+            });
+            applyPendingSeek();
             setBgmTimeUi({ force: true });
         });
         bgmAudioEl.addEventListener('durationchange', () => {
+            debugLog('event: durationchange', {
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState
+            });
+            applyPendingSeek();
             setBgmTimeUi({ force: true });
+            if (Number.isFinite(bgmAudioEl.duration) && bgmAudioEl.duration > 0) {
+                stopBgmProgressRaf();
+                stopBgmProgressInterval();
+            }
         });
+        bgmAudioEl.addEventListener('seeking', () => {
+            debugLog('event: seeking', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState,
+                pendingSeekTime: Number.isFinite(bgmPendingSeekTime) ? bgmPendingSeekTime : null
+            });
+        });
+        bgmAudioEl.addEventListener('seeked', () => {
+            debugLog('event: seeked', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+        });
+        bgmAudioEl.addEventListener('waiting', () => {
+            debugLog('event: waiting', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState,
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered)
+            });
+        });
+        bgmAudioEl.addEventListener('stalled', () => {
+            debugLog('event: stalled', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+        });
+
         bgmAudioEl.addEventListener('timeupdate', () => {
+            debugLogThrottled(500, 'event: timeupdate', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null,
+                paused: bgmAudioEl.paused,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+            applyPendingSeek();
             setBgmTimeUi();
         });
+        bgmAudioEl.addEventListener('progress', () => {
+            debugLogThrottled(800, 'event: progress', {
+                buffered: formatTimeRangesForLog(bgmAudioEl.buffered),
+                seekable: formatTimeRangesForLog(bgmAudioEl.seekable),
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+            applyPendingSeek();
+        });
         bgmAudioEl.addEventListener('ended', () => {
+            debugLog('event: ended', {
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                duration: Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null
+            });
+            stopBgmProgressRaf();
+            stopBgmProgressInterval();
             handleBgmEnded();
         });
         bgmAudioEl.addEventListener('error', () => {
+            debugLog('event: error', {
+                error: bgmAudioEl.error ? { code: bgmAudioEl.error.code, message: bgmAudioEl.error.message } : null,
+                currentSrc: bgmAudioEl.currentSrc,
+                src: bgmAudioEl.getAttribute('src'),
+                networkState: bgmAudioEl.networkState,
+                readyState: bgmAudioEl.readyState
+            });
+            stopBgmProgressRaf();
+            stopBgmProgressInterval();
             setBgmStatus('트랙을 불러오지 못했습니다.');
             setBgmPlayPauseUi();
         });
@@ -1080,6 +1577,8 @@ if (!window.hasMainJsRun) {
                 await tryStartBgm();
             } else {
                 bgmAudioEl.pause();
+                bgmPendingSeekTime = null;
+                stopBgmSeekRetry();
                 removeBgmUnlockListeners();
                 setBgmStatus('꺼짐');
             }
@@ -1103,11 +1602,19 @@ if (!window.hasMainJsRun) {
             }
 
             if (bgmAudioEl.paused) {
+                // If a seek was pending (e.g. stalled/streaming track), pressing Play should act as
+                // an escape hatch: cancel the pending seek and just play from the current position.
+                cancelPendingSeek('play pressed', { statusText: null });
+
                 setBgmStatus(BGM_STATUS_STARTING);
                 syncBgmTrackBeforePlaybackStart();
                 await tryStartBgm();
             } else {
                 bgmAudioEl.pause();
+                // User explicitly paused; do not auto-resume after a later seek.
+                bgmPendingSeekWasPlaying = false;
+                bgmPendingSeekResumeDeadline = 0;
+                bgmPendingSeekResumeArmed = false;
                 setBgmStatus('일시정지');
             }
             setBgmPlayPauseUi();
@@ -1190,33 +1697,241 @@ if (!window.hasMainJsRun) {
             setBgmRepeatUi();
         });
 
-        bgmSeekSlider.addEventListener('input', () => {
-            if (!bgmAudioEl) return;
-            bgmSeekDragging = true;
-            const nextTime = Number(bgmSeekSlider.value);
+        const ensureBgmSeekSliderMax = () => {
+            if (!bgmSeekSlider || !bgmAudioEl) return;
             const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
-            if (Number.isFinite(nextTime) && duration > 0 && bgmTimeDisplayEl) {
-                bgmTimeDisplayEl.textContent = `${formatBgmTime(nextTime)} / ${formatBgmTime(duration)}`;
-                const progressPercent = Math.max(0, Math.min(100, (nextTime / duration) * 100));
-                bgmSeekSlider.style.setProperty('--bgm-progress-percent', `${progressPercent.toFixed(2)}%`);
-            } else {
-                bgmSeekSlider.style.setProperty('--bgm-progress-percent', '0%');
+            const currentTime = Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : 0;
+            const sliderMaxRaw = Number(bgmSeekSlider.max);
+            const nextMax = duration > 0 ? duration : Math.max(300, currentTime + 1, Number.isFinite(sliderMaxRaw) ? sliderMaxRaw : 0);
+            if (!(Number.isFinite(sliderMaxRaw) && sliderMaxRaw > 0)) {
+                bgmSeekSlider.max = String(nextMax);
             }
-        });
+        };
 
-        bgmSeekSlider.addEventListener('change', () => {
+        const logSeekSliderState = (label, event) => {
+            if (!bgmDebugEnabled() || !bgmSeekSlider) return;
+            const rect = bgmSeekSlider.getBoundingClientRect();
+            debugLog(label, {
+                type: event && event.type,
+                pointerType: event && 'pointerType' in event ? event.pointerType : null,
+                clientX: event && 'clientX' in event ? event.clientX : null,
+                slider: {
+                    min: bgmSeekSlider.min,
+                    max: bgmSeekSlider.max,
+                    step: bgmSeekSlider.step,
+                    value: bgmSeekSlider.value,
+                    valueAsNumber: Number.isFinite(bgmSeekSlider.valueAsNumber) ? bgmSeekSlider.valueAsNumber : null
+                },
+                rect: {
+                    left: Number(rect.left.toFixed(2)),
+                    width: Number(rect.width.toFixed(2))
+                }
+            });
+        };
+
+        const getTimeFromSeekSliderValue = (event) => {
+            if (!bgmAudioEl || !bgmSeekSlider) return null;
+            const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+            const raw = event && event.target && typeof event.target.valueAsNumber === 'number'
+                ? event.target.valueAsNumber
+                : bgmSeekSlider.valueAsNumber;
+            const rawNextTime = Number.isFinite(raw) ? raw : Number(bgmSeekSlider.value);
+            if (!Number.isFinite(rawNextTime)) return null;
+            return Math.max(0, duration > 0 ? Math.min(rawNextTime, duration) : rawNextTime);
+        };
+
+        const getSeekClientX = (event) => {
+            if (!event) return null;
+            if (typeof event.clientX === 'number') return event.clientX;
+            const touch = event.changedTouches && event.changedTouches[0]
+                ? event.changedTouches[0]
+                : (event.touches && event.touches[0] ? event.touches[0] : null);
+            if (touch && typeof touch.clientX === 'number') return touch.clientX;
+            return null;
+        };
+
+        const getTimeFromSeekPointer = (event) => {
+            const clientX = getSeekClientX(event);
+            if (!bgmAudioEl || !bgmSeekSlider || typeof clientX !== 'number') return null;
+            ensureBgmSeekSliderMax();
+            const sliderMax = Number(bgmSeekSlider.max);
+            if (!(Number.isFinite(sliderMax) && sliderMax > 0)) return null;
+            const rect = bgmSeekSlider.getBoundingClientRect();
+            if (!(rect.width > 0)) return null;
+            const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+            const rawNextTime = ratio * sliderMax;
+            return Math.max(0, duration > 0 ? Math.min(rawNextTime, duration) : rawNextTime);
+        };
+
+        const updateBgmSeekLastClientX = (event) => {
+            const clientX = getSeekClientX(event);
+            if (typeof clientX === 'number') bgmSeekLastClientX = clientX;
+        };
+
+        const armBgmSeekMoveListeners = () => {
+            if (bgmSeekMoveListenersArmed) return;
+            bgmSeekMoveListenersArmed = true;
+            window.addEventListener('pointermove', updateBgmSeekLastClientX, { passive: true });
+            window.addEventListener('mousemove', updateBgmSeekLastClientX, { passive: true });
+            window.addEventListener('touchmove', updateBgmSeekLastClientX, { passive: true });
+        };
+
+        const disarmBgmSeekMoveListeners = () => {
+            if (!bgmSeekMoveListenersArmed) return;
+            bgmSeekMoveListenersArmed = false;
+            window.removeEventListener('pointermove', updateBgmSeekLastClientX);
+            window.removeEventListener('mousemove', updateBgmSeekLastClientX);
+            window.removeEventListener('touchmove', updateBgmSeekLastClientX);
+        };
+
+        const beginBgmSeekDrag = (event) => {
+            bgmSeekDragging = true;
+            updateBgmSeekLastClientX(event);
+            armBgmSeekMoveListeners();
+            ensureBgmSeekSliderMax();
+            logSeekSliderState('seek drag begin', event);
+        };
+
+        const endBgmSeekDrag = (event) => {
+            if (!bgmSeekDragging) return;
+            bgmSeekDragging = false;
+            updateBgmSeekLastClientX(event);
+            disarmBgmSeekMoveListeners();
+            logSeekSliderState('seek drag end', event);
+
+            // IMPORTANT: Some browsers dispatch pointerup/mouseup before the final change event.
+            // If we force-sync the UI here, we can overwrite the slider's value back to the
+            // currentTime (often ~0) and the subsequent change handler will read 0.
+            if (bgmSeekDragEndUiTimer) {
+                window.clearTimeout(bgmSeekDragEndUiTimer);
+                bgmSeekDragEndUiTimer = 0;
+            }
+            bgmSeekDragEndUiTimer = window.setTimeout(() => {
+                bgmSeekDragEndUiTimer = 0;
+                setBgmTimeUi({ force: true });
+            }, 60);
+        };
+
+        const applyBgmSeekToTime = (nextTime, meta) => {
+            if (!bgmAudioEl || !Number.isFinite(nextTime)) return;
+            const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+            const canSeekNow = canBgmSeekToTime(nextTime);
+            debugLog('seek requested', {
+                ...meta,
+                nextTime,
+                duration,
+                canSeekNow,
+                currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+                readyState: bgmAudioEl.readyState,
+                networkState: bgmAudioEl.networkState
+            });
+            const perfNow = window.performance && typeof window.performance.now === 'function'
+                ? window.performance.now()
+                : Date.now();
+            const wasPlaying = Boolean(bgmEnabled && bgmAudioEl && !bgmAudioEl.paused);
+
+            bgmPendingSeekTime = nextTime;
+            bgmSeekRetryAttempts = 0;
+            bgmSeekRetryStartedAt = perfNow;
+            bgmPendingSeekStatusShown = false;
+
+            // If the user initiated a seek while the track was already playing, some browsers
+            // can briefly pause the media pipeline while the seek resolves. Allow a short
+            // resume window after the seek sticks.
+            bgmPendingSeekWasPlaying = wasPlaying;
+            bgmPendingSeekResumeArmed = wasPlaying;
+            bgmPendingSeekResumeDeadline = wasPlaying ? perfNow + BGM_SEEK_USER_RESUME_WINDOW_MS : 0;
+
+            applyPendingSeek();
+            setBgmTimeUi({ force: true });
+        };
+
+        const applyBgmSeekFromSlider = (event) => {
             if (!bgmAudioEl) return;
-            const nextTime = Number(bgmSeekSlider.value);
-            if (Number.isFinite(nextTime)) {
-                bgmAudioEl.currentTime = Math.max(0, nextTime);
+
+            const now = window.performance && typeof window.performance.now === 'function'
+                ? window.performance.now()
+                : Date.now();
+            if (now < bgmSeekIgnoreSliderCommitUntil) {
+                logSeekSliderState('seek slider ignored (pointer commit window)', event);
+                debugLog('seek slider ignored (pointer commit window)', {
+                    type: event && event.type,
+                    ignoreUntil: bgmSeekIgnoreSliderCommitUntil
+                });
+                return;
             }
-            bgmSeekDragging = false;
-            setBgmTimeUi({ force: true });
+
+            ensureBgmSeekSliderMax();
+            logSeekSliderState('seek slider input', event);
+            const nextTime = getTimeFromSeekSliderValue(event);
+            if (!Number.isFinite(nextTime)) return;
+            applyBgmSeekToTime(nextTime, {
+                source: 'slider',
+                rawNextTime: Number.isFinite(event && event.target && event.target.valueAsNumber) ? event.target.valueAsNumber : Number(bgmSeekSlider.value)
+            });
+        };
+
+        const applyBgmSeekFromPointerCommit = (event) => {
+            if (!bgmAudioEl) return;
+            ensureBgmSeekSliderMax();
+            logSeekSliderState('seek pointer commit', event);
+
+            const nextTime = getTimeFromSeekPointer(event);
+            const fallbackTime = !Number.isFinite(nextTime) && Number.isFinite(bgmSeekLastClientX)
+                ? getTimeFromSeekPointer({ clientX: bgmSeekLastClientX })
+                : null;
+            const finalTime = Number.isFinite(nextTime) ? nextTime : fallbackTime;
+            if (!Number.isFinite(finalTime)) return;
+
+            // Treat pointer release as the single source of truth for the seek commit.
+            // Some browsers fire a trailing `change` event with a stale/zero value,
+            // which would otherwise overwrite the intended seek.
+            const now = window.performance && typeof window.performance.now === 'function'
+                ? window.performance.now()
+                : Date.now();
+            bgmSeekIgnoreSliderCommitUntil = now + 200;
+
+            // When the slider's value fails to update (e.g. max was 0 at interaction start),
+            // fall back to pointer position.
+            applyBgmSeekToTime(finalTime, { source: 'pointer' });
+        };
+
+        bgmSeekSlider.addEventListener('pointerdown', beginBgmSeekDrag);
+        bgmSeekSlider.addEventListener('pointerup', (event) => {
+            // Commit seek on pointer release as a fallback for cases where the range input
+            // value fails to update (e.g. max=0 during early interaction).
+            applyBgmSeekFromPointerCommit(event);
+            endBgmSeekDrag(event);
+        });
+        bgmSeekSlider.addEventListener('pointercancel', endBgmSeekDrag);
+        bgmSeekSlider.addEventListener('mousedown', beginBgmSeekDrag);
+        bgmSeekSlider.addEventListener('mouseup', (event) => {
+            applyBgmSeekFromPointerCommit(event);
+            endBgmSeekDrag(event);
+        });
+        bgmSeekSlider.addEventListener('touchstart', beginBgmSeekDrag, { passive: true });
+        bgmSeekSlider.addEventListener('touchend', (event) => {
+            applyBgmSeekFromPointerCommit(event);
+            endBgmSeekDrag(event);
+        }, { passive: true });
+        bgmSeekSlider.addEventListener('touchcancel', endBgmSeekDrag, { passive: true });
+
+        bgmSeekSlider.addEventListener('input', (event) => {
+            applyBgmSeekFromSlider(event);
         });
 
-        bgmSeekSlider.addEventListener('blur', () => {
-            bgmSeekDragging = false;
-            setBgmTimeUi({ force: true });
+        bgmSeekSlider.addEventListener('change', (event) => {
+            // Do not treat `change` as a seek commit. Pointer release already commits
+            // the intended seek, and `change` can carry a stale/zero value in some browsers.
+            logSeekSliderState('seek slider change (ignored for commit)', event);
+            endBgmSeekDrag(event);
+        });
+
+        bgmSeekSlider.addEventListener('blur', (event) => {
+            // Navigation / focus changes can trigger blur. Do not treat blur as a seek commit,
+            // otherwise the slider can snap to 0 during SPA view switches.
+            endBgmSeekDrag(event);
         });
 
         bgmTrackListEl.addEventListener('click', (event) => {
@@ -1249,6 +1964,23 @@ if (!window.hasMainJsRun) {
         });
         window.setTimeout(queueBgmMarqueeState, 120);
 
+        window.addEventListener('aa:navigate', (event) => {
+            if (!bgmAudioEl) return;
+            // Navigation inside the SPA should not reset BGM state.
+            // Ensure UI reflects the *actual* element state after view transitions.
+            debugLog('aa:navigate', event && event.detail ? event.detail : {});
+
+            // If a seek drag was in progress, navigation can steal focus/pointer events.
+            // Reset transient UI state to avoid desync (slider stuck/pending seek).
+            bgmSeekDragging = false;
+            bgmPendingSeekTime = null;
+            stopBgmSeekRetry();
+
+            setBgmTimeUi({ force: true });
+            setBgmPlayPauseUi();
+            setBgmStatus(getBgmStatusText());
+        });
+
         if (bgmEnabled && !BGM_TRACKS.length) {
             setBgmStatus('\uC0AC\uC6A9 \uAC00\uB2A5\uD55C \uD2B8\uB799\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
             setBgmPlayPauseUi();
@@ -1261,6 +1993,15 @@ if (!window.hasMainJsRun) {
             setBgmStatus(getBgmStatusText());
             setBgmPlayPauseUi();
         }
+
+        debugLog('initBgmControls end', {
+            enabled: bgmEnabled,
+            library: bgmLibrary,
+            trackIndex: bgmTrackIndex,
+            src: bgmAudioEl ? bgmAudioEl.getAttribute('src') : null,
+            currentTime: bgmAudioEl && Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
+            duration: bgmAudioEl && Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : null
+        });
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -1565,6 +2306,8 @@ if (!window.hasMainJsRun) {
         else if(type === 'edit_comment') loadCommentForEdit(targetObj);
     }
 }
+
+
 
 
 
