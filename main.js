@@ -22,11 +22,16 @@ if (!window.hasMainJsRun) {
     const MEDIA_BASE = (typeof window.__AA_MEDIA_BASE__ === 'string' && window.__AA_MEDIA_BASE__.trim())
         ? window.__AA_MEDIA_BASE__.trim()
         : 'https://bgm.wmner.cloud/';
+    const normalizeUrlBase = (value) => {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) return '';
+        return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+    };
     const R2_MANIFEST_PATH = (typeof window.__AA_MEDIA_MANIFEST_PATH__ === 'string' && window.__AA_MEDIA_MANIFEST_PATH__.trim())
         ? window.__AA_MEDIA_MANIFEST_PATH__.trim()
-        : '_r2_upload/manifest.json';
+        : `${normalizeUrlBase(MEDIA_BASE)}manifest.json`;
     const AUDIO_LIBRARY_KEYS = ['bgm', 'ost'];
-    const AUDIO_LIBRARY_CONFIG = {
+    const AUDIO_LIBRARY_CONFIG = { 
         bgm: {
             key: 'bgm',
             folder: 'bgm',
@@ -43,11 +48,6 @@ if (!window.hasMainJsRun) {
         }
     };
     const getTrackIndexKey = (libraryKey) => `${BGM_TRACK_INDEX_PREFIX_KEY}${libraryKey}`;
-    const normalizeUrlBase = (value) => {
-        const trimmed = typeof value === 'string' ? value.trim() : '';
-        if (!trimmed) return '';
-        return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
-    };
     const resolveMediaUrl = (pathOrKey) => {
         const trimmed = typeof pathOrKey === 'string' ? pathOrKey.trim() : '';
         if (!trimmed) return '';
