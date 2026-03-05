@@ -35,6 +35,11 @@ window.addEventListener('popstate', (event) => {
 });
 
 window.router = function(page, pushHistory = true) {
+    try {
+        window.dispatchEvent(new CustomEvent('aa:navigate', { detail: { page, pushHistory, ts: Date.now() } }));
+    } catch (e) {
+        // ignore
+    }
     if(pushHistory) {
         const code = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP[page]) ? ROUTE_MAP[page] : page;
         if (page !== 'detail') {
