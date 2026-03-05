@@ -8,6 +8,1260 @@ if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
     window.currentEditorMode = 'html';
     window.isWriting = false;
+    const BGM_ENABLED_KEY = 'aa_bgm_enabled';
+    const BGM_VOLUME_KEY = 'aa_bgm_volume';
+    const BGM_OPACITY_KEY = 'aa_bgm_opacity';
+    const BGM_TRACK_INDEX_LEGACY_KEY = 'aa_bgm_track_index';
+    const BGM_TRACK_INDEX_PREFIX_KEY = 'aa_bgm_track_index_';
+    const BGM_LIBRARY_KEY = 'aa_bgm_library';
+    const BGM_COLLAPSED_KEY = 'aa_bgm_collapsed';
+    const BGM_MINIMIZED_MOBILE_KEY = 'aa_bgm_minimized_mobile';
+    const BGM_REPEAT_MODE_KEY = 'aa_bgm_repeat_mode';
+    const BGM_REPEAT_MODES = ['off', 'one', 'all'];
+    const BGM_COVER_EXTENSIONS = ['jpg', 'png', 'webp'];
+    const MEDIA_BASE = (typeof window.__AA_MEDIA_BASE__ === 'string' && window.__AA_MEDIA_BASE__.trim())
+        ? window.__AA_MEDIA_BASE__.trim()
+        : 'https://bgm.wmner.cloud/';
+    const R2_MANIFEST_PATH = (typeof window.__AA_MEDIA_MANIFEST_PATH__ === 'string' && window.__AA_MEDIA_MANIFEST_PATH__.trim())
+        ? window.__AA_MEDIA_MANIFEST_PATH__.trim()
+        : '_r2_upload/manifest.json';
+    const AUDIO_LIBRARY_KEYS = ['bgm', 'ost'];
+    const AUDIO_LIBRARY_CONFIG = {
+        bgm: {
+            key: 'bgm',
+            folder: 'bgm',
+            manifestPath: 'assets/bgm/manifest.json',
+            manifestGlobalKey: '__BGM_MANIFEST__',
+            requiredFallbackFiles: []
+        },
+        ost: {
+            key: 'ost',
+            folder: 'OST',
+            manifestPath: 'assets/OST/manifest.json',
+            manifestGlobalKey: '__OST_MANIFEST__',
+            requiredFallbackFiles: []
+        }
+    };
+    const getTrackIndexKey = (libraryKey) => `${BGM_TRACK_INDEX_PREFIX_KEY}${libraryKey}`;
+    const normalizeUrlBase = (value) => {
+        const trimmed = typeof value === 'string' ? value.trim() : '';
+        if (!trimmed) return '';
+        return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+    };
+    const resolveMediaUrl = (pathOrKey) => {
+        const trimmed = typeof pathOrKey === 'string' ? pathOrKey.trim() : '';
+        if (!trimmed) return '';
+        if (/^(?:https?:)?\/\//i.test(trimmed) || /^data:/i.test(trimmed) || /^blob:/i.test(trimmed)) {
+            return trimmed;
+        }
+        const normalizedBase = normalizeUrlBase(MEDIA_BASE);
+        if (!normalizedBase) return trimmed;
+        return `${normalizedBase}${trimmed.replace(/^\/+/, '')}`;
+    };
+    const parseTrackTitle = (filename, libraryKey) => {
+        const withoutExtension = filename.replace(/\.mp3$/i, '');
+        const withoutTrackCode = withoutExtension.replace(/^(?:bgm|ost)[_\s-]*\d+\s*/i, '');
+        return withoutTrackCode.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+    const buildLibraryTracksFromFiles = (libraryKey, files) => {
+        const cfg = AUDIO_LIBRARY_CONFIG[libraryKey];
+        if (!cfg) return [];
+        return files.map((filename) => ({
+            filename,
+            title: parseTrackTitle(filename, libraryKey),
+            src: `assets/${cfg.folder}/${filename}`,
+            cover: null
+        }));
+    };
+    const ensureRequiredLibraryTracks = (libraryKey, tracks) => {
+        const cfg = AUDIO_LIBRARY_CONFIG[libraryKey];
+        const normalizedTracks = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
+        const mergedTracks = [...normalizedTracks];
+        const existingFiles = new Set(mergedTracks.map((track) => track.filename));
+        const requiredFiles = cfg && Array.isArray(cfg.requiredFallbackFiles) ? cfg.requiredFallbackFiles : [];
+
+        requiredFiles.forEach((filename) => {
+            if (existingFiles.has(filename)) return;
+            mergedTracks.push({
+                filename,
+                title: parseTrackTitle(filename, libraryKey),
+                src: `assets/${cfg.folder}/${filename}`,
+                cover: null
+            });
+        });
+
+        return mergedTracks;
+    };
+    const buildLibraryFallbackTracks = (libraryKey) => ensureRequiredLibraryTracks(libraryKey, buildLibraryTracksFromFiles(libraryKey, []));
+    const sanitizeManifestTrack = (libraryKey, item) => {
+        if (!item || typeof item !== 'object') return null;
+
+        const filename = typeof item.filename === 'string' ? item.filename.trim() : '';
+        const src = typeof item.src === 'string' ? item.src.trim() : '';
+        if (!filename || !src) return null;
+
+        const titleFromManifest = typeof item.title === 'string' ? item.title.trim() : '';
+        const normalizedTrack = {
+            filename,
+            title: titleFromManifest || parseTrackTitle(filename, libraryKey),
+            src,
+            cover: null
+        };
+
+        if (typeof item.cover === 'string') {
+            const trimmedCover = item.cover.trim();
+            if (trimmedCover) {
+                normalizedTrack.cover = trimmedCover;
+            }
+        }
+
+        return normalizedTrack;
+    };
+    const getManifestTracksFromWindow = (libraryKey) => {
+        const cfg = AUDIO_LIBRARY_CONFIG[libraryKey];
+        if (!cfg) return null;
+        const globalManifest = window[cfg.manifestGlobalKey];
+        if (!Array.isArray(globalManifest)) return null;
+        const manifestTracks = ensureRequiredLibraryTracks(
+            libraryKey,
+            globalManifest.map((item) => sanitizeManifestTrack(libraryKey, item)).filter(Boolean)
+        );
+        return manifestTracks.length ? manifestTracks : null;
+    };
+    const AUDIO_TRACKS_BY_LIBRARY = {
+        bgm: buildLibraryFallbackTracks('bgm'),
+        ost: buildLibraryFallbackTracks('ost')
+    };
+    let bgmLibrary = 'bgm';
+    let BGM_TRACKS = AUDIO_TRACKS_BY_LIBRARY.bgm;
+
+    const loadLibraryTracksFromManifest = async (libraryKey) => {
+        const cfg = AUDIO_LIBRARY_CONFIG[libraryKey];
+        if (!cfg) return false;
+
+        const manifestFromWindow = getManifestTracksFromWindow(libraryKey);
+        if (manifestFromWindow) {
+            AUDIO_TRACKS_BY_LIBRARY[libraryKey] = manifestFromWindow;
+            return true;
+        }
+
+        try {
+            const response = await fetch(cfg.manifestPath, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`manifest http ${response.status}`);
+
+            const manifest = await response.json();
+            if (!Array.isArray(manifest)) throw new Error('manifest is not an array');
+
+            const manifestTracks = ensureRequiredLibraryTracks(
+                libraryKey,
+                manifest.map((item) => sanitizeManifestTrack(libraryKey, item)).filter(Boolean)
+            );
+
+            AUDIO_TRACKS_BY_LIBRARY[libraryKey] = manifestTracks.length
+                ? manifestTracks
+                : buildLibraryFallbackTracks(libraryKey);
+            return manifestTracks.length > 0;
+        } catch (_error) {
+            AUDIO_TRACKS_BY_LIBRARY[libraryKey] = buildLibraryFallbackTracks(libraryKey);
+            return false;
+        }
+    };
+
+    const sanitizeR2ManifestTrack = (libraryKey, item) => {
+        if (!item || typeof item !== 'object') return null;
+
+        const kind = typeof item.kind === 'string' ? item.kind.trim().toLowerCase() : '';
+        if (kind !== libraryKey) return null;
+
+        const trackKey = typeof item.trackKey === 'string' ? item.trackKey.trim() : '';
+        if (!trackKey) return null;
+
+        const trackId = typeof item.id === 'string' ? item.id.trim() : '';
+        const fileFromTrackKey = trackKey.split('?')[0].split('/').pop() || '';
+        const filename = fileFromTrackKey || (trackId ? `${trackId}.mp3` : '');
+        if (!filename) return null;
+
+        const titleFromManifest = typeof item.title === 'string' ? item.title.trim() : '';
+        const src = resolveMediaUrl(trackKey);
+        if (!src) return null;
+
+        const normalizedTrack = {
+            filename,
+            title: titleFromManifest || parseTrackTitle(filename, libraryKey),
+            src,
+            cover: null
+        };
+
+        if (typeof item.coverKey === 'string') {
+            const trimmedCoverKey = item.coverKey.trim();
+            if (trimmedCoverKey) {
+                normalizedTrack.cover = resolveMediaUrl(trimmedCoverKey);
+            }
+        }
+
+        return normalizedTrack;
+    };
+
+    const loadTracksFromR2Manifest = async () => {
+        try {
+            const response = await fetch(R2_MANIFEST_PATH, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`r2 manifest http ${response.status}`);
+
+            const manifest = await response.json();
+            if (!Array.isArray(manifest)) throw new Error('r2 manifest is not an array');
+
+            const nextTracksByLibrary = {};
+            for (const libraryKey of AUDIO_LIBRARY_KEYS) {
+                const mappedTracks = ensureRequiredLibraryTracks(
+                    libraryKey,
+                    manifest.map((item) => sanitizeR2ManifestTrack(libraryKey, item)).filter(Boolean)
+                );
+                if (!mappedTracks.length) throw new Error(`r2 manifest has no tracks for ${libraryKey}`);
+                nextTracksByLibrary[libraryKey] = mappedTracks;
+            }
+
+            AUDIO_LIBRARY_KEYS.forEach((libraryKey) => {
+                AUDIO_TRACKS_BY_LIBRARY[libraryKey] = nextTracksByLibrary[libraryKey];
+            });
+            return true;
+        } catch (_error) {
+            return false;
+        }
+    };
+
+    const loadAllAudioTracksFromManifest = async () => {
+        const loadedFromR2Manifest = await loadTracksFromR2Manifest();
+        if (loadedFromR2Manifest) return;
+        await Promise.all(AUDIO_LIBRARY_KEYS.map((libraryKey) => loadLibraryTracksFromManifest(libraryKey)));
+    };
+
+    let bgmAudioEl = null;
+    let bgmWidgetEl = null;
+    let bgmToggleBtn = null;
+    let bgmPlayPauseBtn = null;
+    let bgmPrevBtn = null;
+    let bgmNextBtn = null;
+    let bgmCollapseBtn = null;
+    let bgmTrackListEl = null;
+    let bgmCurrentTrackEl = null;
+    let bgmVolumeSlider = null;
+    let bgmOpacitySlider = null;
+    let bgmSeekSlider = null;
+    let bgmTimeDisplayEl = null;
+    let bgmRepeatBtn = null;
+    let bgmLibraryBgmBtn = null;
+    let bgmLibraryOstBtn = null;
+    let bgmStatusEl = null;
+    let bgmCoverArtEl = null;
+    let bgmEnabled = false;
+    let bgmCollapsed = false;
+    let bgmDesktopCollapsed = false;
+    let bgmDesktopMinimized = false;
+    let bgmMinimizedMobile = false;
+    let bgmWasMobileViewport = false;
+    let bgmRepeatMode = 'off';
+    let bgmSeekDragging = false;
+    let bgmUnlockArmed = false;
+    let bgmCurrentTrackHovering = false;
+    let bgmHoveredTrackIndex = -1;
+    let bgmTrackIndex = 0;
+    let bgmTrackIndicesByLibrary = { bgm: 0, ost: 0 };
+    let bgmDockMotionRaf = 0;
+    let bgmDockShift = 0;
+    let bgmDockTargetShift = 0;
+    let bgmLastScrollY = 0;
+    let bgmCoverRequestToken = 0;
+    let bgmMarqueeRaf = 0;
+    const BGM_STATUS_STARTING = '\uC7AC\uC0DD \uC2DC\uC791...';
+    const bgmCoverCacheByLibrary = {
+        bgm: new Map(),
+        ost: new Map()
+    };
+
+    const clampVolume = (value) => {
+        if (value === null || value === undefined || value === '') return 0.35;
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) return 0.35;
+        return Math.max(0, Math.min(1, numeric));
+    };
+
+    const clampOpacity = (value) => {
+        if (value === null || value === undefined || value === '') return 0.9;
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) return 0.9;
+        return Math.max(0.2, Math.min(1, numeric));
+    };
+
+    const clampTrackIndex = (value, libraryKey) => {
+        const normalizedLibrary = libraryKey || bgmLibrary;
+        const libraryTracks = AUDIO_TRACKS_BY_LIBRARY[normalizedLibrary] || [];
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || !libraryTracks.length) return 0;
+        const normalized = Math.trunc(numeric) % libraryTracks.length;
+        return normalized < 0 ? normalized + libraryTracks.length : normalized;
+    };
+
+    const normalizeBgmLibrary = (value) => (AUDIO_LIBRARY_KEYS.includes(value) ? value : 'bgm');
+    const normalizeRepeatMode = (value) => {
+        if (!value) return 'off';
+        return BGM_REPEAT_MODES.includes(value) ? value : 'off';
+    };
+    const isStoredTrue = (value) => value === '1' || value === 'true';
+    const isStoredBoolean = (value) => value === '1' || value === 'true' || value === '0' || value === 'false';
+    const isBgmMobileViewport = () => window.matchMedia('(max-width: 767px)').matches;
+    const isBgmHoverCapable = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const syncBgmCollapseStateForViewport = () => {
+        if (isBgmMobileViewport()) {
+            bgmCollapsed = true;
+            return;
+        }
+        if (!bgmDesktopCollapsed) {
+            bgmDesktopMinimized = false;
+        }
+        bgmCollapsed = bgmDesktopCollapsed;
+        bgmMinimizedMobile = false;
+    };
+
+    const formatBgmTime = (seconds) => {
+        if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
+        const totalSeconds = Math.floor(seconds);
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+
+    const getBgmStatusText = () => {
+        if (!bgmEnabled) return '꺼짐';
+        if (!bgmAudioEl) return '트랙 로딩 중...';
+        if (bgmAudioEl.volume === 0) return '음소거';
+        return bgmAudioEl.paused ? '일시정지' : '재생 중';
+    };
+
+    const setBgmTimeUi = (options) => {
+        if (!bgmAudioEl) return;
+        const resolvedOptions = options || {};
+        const force = Boolean(resolvedOptions.force);
+        if (bgmSeekDragging && !force) return;
+
+        const currentTime = Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : 0;
+        const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+        const progressPercent = duration > 0 ? Math.max(0, Math.min(100, (currentTime / duration) * 100)) : 0;
+
+        if (bgmTimeDisplayEl) {
+            bgmTimeDisplayEl.textContent = `${formatBgmTime(currentTime)} / ${formatBgmTime(duration)}`;
+        }
+
+        if (bgmSeekSlider) {
+            bgmSeekSlider.max = duration > 0 ? String(duration) : '0';
+            bgmSeekSlider.value = String(duration > 0 ? Math.min(currentTime, duration) : 0);
+            bgmSeekSlider.disabled = duration <= 0;
+            bgmSeekSlider.style.setProperty('--bgm-progress-percent', `${progressPercent.toFixed(2)}%`);
+        }
+    };
+
+    const setBgmStatus = (text) => {
+        if (bgmStatusEl) bgmStatusEl.textContent = text;
+    };
+
+    const setBgmToggleUi = () => {
+        if (!bgmToggleBtn) return;
+        bgmToggleBtn.textContent = bgmEnabled ? '켜짐' : '꺼짐';
+        bgmToggleBtn.classList.toggle('is-on', bgmEnabled);
+    };
+
+    const setBgmPlayPauseUi = () => {
+        if (!bgmPlayPauseBtn) return;
+        const iconEl = bgmPlayPauseBtn.querySelector('i');
+        const isPlaying = Boolean(bgmAudioEl && bgmEnabled && !bgmAudioEl.paused);
+        if (iconEl) {
+            iconEl.classList.toggle('fa-play', !isPlaying);
+            iconEl.classList.toggle('fa-pause', isPlaying);
+        }
+        bgmPlayPauseBtn.setAttribute('aria-label', isPlaying ? '일시정지' : '재생');
+        bgmPlayPauseBtn.setAttribute('title', isPlaying ? '일시정지' : '재생');
+        bgmPlayPauseBtn.classList.toggle('is-playing', isPlaying);
+    };
+
+    const setBgmRepeatUi = () => {
+        if (!bgmRepeatBtn) return;
+        let textValue = '반복: 끔';
+        let title = '반복 모드: 끔';
+
+        if (bgmRepeatMode === 'one') {
+            textValue = '반복: 한 곡';
+            title = '반복 모드: 한 곡';
+        } else if (bgmRepeatMode === 'all') {
+            textValue = '반복: 전체';
+            title = '반복 모드: 전체';
+        }
+
+        bgmRepeatBtn.textContent = textValue;
+        bgmRepeatBtn.setAttribute('aria-label', title);
+        bgmRepeatBtn.setAttribute('title', title);
+        bgmRepeatBtn.classList.toggle('is-repeat-one', bgmRepeatMode === 'one');
+        bgmRepeatBtn.classList.toggle('is-repeat-all', bgmRepeatMode === 'all');
+    };
+    const setBgmLibraryUi = () => {
+        if (bgmLibraryBgmBtn) {
+            const isBgm = bgmLibrary === 'bgm';
+            bgmLibraryBgmBtn.classList.toggle('is-active', isBgm);
+            bgmLibraryBgmBtn.setAttribute('aria-selected', isBgm ? 'true' : 'false');
+        }
+        if (bgmLibraryOstBtn) {
+            const isOst = bgmLibrary === 'ost';
+            bgmLibraryOstBtn.classList.toggle('is-active', isOst);
+            bgmLibraryOstBtn.setAttribute('aria-selected', isOst ? 'true' : 'false');
+        }
+    };
+
+    const setBgmCollapseUi = () => {
+        if (!bgmWidgetEl || !bgmCollapseBtn) return;
+        syncBgmCollapseStateForViewport();
+        const isMobile = isBgmMobileViewport();
+        const isMinimized = isMobile ? bgmMinimizedMobile : bgmDesktopMinimized;
+
+        bgmWidgetEl.classList.toggle('is-collapsed', bgmCollapsed);
+        bgmWidgetEl.classList.toggle('is-minimized', isMinimized);
+
+        if (isMinimized) {
+            bgmCollapseBtn.setAttribute('aria-expanded', 'false');
+            bgmCollapseBtn.setAttribute('aria-label', isMobile ? 'Open mini player' : 'Expand player');
+            bgmCollapseBtn.setAttribute('title', isMobile ? 'Open mini player' : 'Expand');
+            const minimizedIconEl = bgmCollapseBtn.querySelector('i');
+            if (minimizedIconEl) {
+                minimizedIconEl.classList.toggle('fa-angles-left', true);
+                minimizedIconEl.classList.toggle('fa-angles-right', false);
+            }
+            queueBgmMarqueeState();
+            return;
+        }
+
+        if (isMobile) {
+            bgmCollapseBtn.setAttribute('aria-expanded', 'false');
+            bgmCollapseBtn.setAttribute('aria-label', 'Minimize to handle');
+            bgmCollapseBtn.setAttribute('title', 'Minimize to handle');
+            const mobileIconEl = bgmCollapseBtn.querySelector('i');
+            if (mobileIconEl) {
+                mobileIconEl.classList.toggle('fa-angles-left', false);
+                mobileIconEl.classList.toggle('fa-angles-right', true);
+            }
+            queueBgmMarqueeState();
+            return;
+        }
+
+        if (bgmCollapsed) {
+            bgmCollapseBtn.setAttribute('aria-expanded', 'false');
+            bgmCollapseBtn.setAttribute('aria-label', 'Minimize to handle');
+            bgmCollapseBtn.setAttribute('title', 'Minimize to handle');
+        } else {
+            bgmCollapseBtn.setAttribute('aria-expanded', 'true');
+            bgmCollapseBtn.setAttribute('aria-label', 'Collapse player');
+            bgmCollapseBtn.setAttribute('title', 'Collapse');
+        }
+        const iconEl = bgmCollapseBtn.querySelector('i');
+        if (iconEl) {
+            iconEl.classList.toggle('fa-angles-left', !bgmCollapsed);
+            iconEl.classList.toggle('fa-angles-right', bgmCollapsed);
+        }
+        queueBgmMarqueeState();
+    };
+
+    const BGM_MARQUEE_GAP_TEXT = '   \u2022   ';
+
+    const ensureBgmMarqueeTextNode = (containerEl, nextText) => {
+        if (!containerEl) return null;
+
+        const textValue = typeof nextText === 'string'
+            ? nextText
+            : (containerEl.dataset.bgmMarqueeText || containerEl.textContent || '');
+        containerEl.dataset.bgmMarqueeText = textValue;
+
+        let marqueeTextEl = containerEl.querySelector('.bgm-marquee-text');
+        const hasLoopNode = Boolean(containerEl.querySelector('.bgm-marquee-inner'));
+        if (!marqueeTextEl || hasLoopNode || marqueeTextEl.parentElement !== containerEl) {
+            marqueeTextEl = document.createElement('span');
+            marqueeTextEl.className = 'bgm-marquee-text';
+            containerEl.textContent = '';
+            containerEl.appendChild(marqueeTextEl);
+        }
+        marqueeTextEl.textContent = textValue;
+        return marqueeTextEl;
+    };
+
+    const createBgmMarqueeLoopNode = (textValue) => {
+        const innerEl = document.createElement('span');
+        innerEl.className = 'bgm-marquee-inner';
+
+        const firstSegmentEl = document.createElement('span');
+        firstSegmentEl.className = 'bgm-marquee-seg';
+        firstSegmentEl.textContent = textValue;
+
+        const gapEl = document.createElement('span');
+        gapEl.className = 'bgm-marquee-gap';
+        gapEl.setAttribute('aria-hidden', 'true');
+        gapEl.textContent = BGM_MARQUEE_GAP_TEXT;
+
+        const secondSegmentEl = document.createElement('span');
+        secondSegmentEl.className = 'bgm-marquee-seg';
+        secondSegmentEl.setAttribute('aria-hidden', 'true');
+        secondSegmentEl.textContent = textValue;
+
+        innerEl.appendChild(firstSegmentEl);
+        innerEl.appendChild(gapEl);
+        innerEl.appendChild(secondSegmentEl);
+
+        return { innerEl, firstSegmentEl, gapEl };
+    };
+
+    const clearBgmMarqueeState = (containerEl) => {
+        if (!containerEl) return;
+        containerEl.classList.remove('is-marquee');
+        containerEl.style.removeProperty('--bgm-marquee-distance');
+        containerEl.style.removeProperty('--bgm-marquee-duration');
+    };
+
+    const updateBgmMarqueeForElement = (containerEl, options) => {
+        if (!containerEl) return;
+        const resolvedOptions = options || {};
+        const allowAnimation = resolvedOptions.allowAnimation !== false;
+        const marqueeTextEl = ensureBgmMarqueeTextNode(containerEl);
+        if (!marqueeTextEl) return;
+        clearBgmMarqueeState(containerEl);
+        if (containerEl.clientWidth <= 0) return;
+
+        const overflowThreshold = Number.isFinite(resolvedOptions.overflowThreshold) ? resolvedOptions.overflowThreshold : 10;
+        const overflowWidth = marqueeTextEl.scrollWidth - containerEl.clientWidth;
+        if (overflowWidth <= overflowThreshold) return;
+        if (!allowAnimation) return;
+
+        const textValue = containerEl.dataset.bgmMarqueeText || marqueeTextEl.textContent || '';
+        if (!textValue) return;
+
+        const pixelsPerSecond = Number.isFinite(resolvedOptions.pixelsPerSecond) ? resolvedOptions.pixelsPerSecond : 22;
+        const minDuration = Number.isFinite(resolvedOptions.minDuration) ? resolvedOptions.minDuration : 7;
+        const maxDuration = Number.isFinite(resolvedOptions.maxDuration) ? resolvedOptions.maxDuration : 18;
+
+        const marqueeLoopNode = createBgmMarqueeLoopNode(textValue);
+        containerEl.textContent = '';
+        containerEl.appendChild(marqueeLoopNode.innerEl);
+
+        const segmentWidth = Math.ceil(marqueeLoopNode.firstSegmentEl.getBoundingClientRect().width);
+        const gapWidth = Math.ceil(marqueeLoopNode.gapEl.getBoundingClientRect().width);
+        const distance = Math.max(1, segmentWidth + gapWidth);
+        const duration = Math.max(minDuration, Math.min(maxDuration, distance / pixelsPerSecond));
+        containerEl.style.setProperty('--bgm-marquee-distance', `${distance}px`);
+        containerEl.style.setProperty('--bgm-marquee-duration', `${duration.toFixed(2)}s`);
+        containerEl.classList.add('is-marquee');
+    };
+
+    const updateBgmMarqueeState = () => {
+        const isHoverCapable = isBgmHoverCapable();
+        updateBgmMarqueeForElement(bgmCurrentTrackEl, {
+            pixelsPerSecond: bgmCollapsed ? 18 : 22,
+            minDuration: 7,
+            maxDuration: 18,
+            overflowThreshold: 10,
+            allowAnimation: !isHoverCapable || bgmCurrentTrackHovering
+        });
+
+        if (!bgmTrackListEl) return;
+        bgmTrackListEl.querySelectorAll('.bgm-track-btn').forEach((trackButtonEl) => {
+            if (!(trackButtonEl instanceof HTMLElement)) return;
+            const trackTextEl = trackButtonEl.querySelector('.bgm-track-text');
+            if (!(trackTextEl instanceof HTMLElement)) return;
+            const trackIndex = Number(trackButtonEl.dataset.index);
+            const isActiveTrack = Number.isFinite(trackIndex) && trackIndex === bgmTrackIndex;
+            const isHoveredTrack = Number.isFinite(trackIndex) && trackIndex === bgmHoveredTrackIndex;
+            updateBgmMarqueeForElement(trackTextEl, {
+                pixelsPerSecond: 24,
+                minDuration: 6,
+                maxDuration: 14,
+                overflowThreshold: 8,
+                allowAnimation: isHoverCapable && isActiveTrack && isHoveredTrack
+            });
+        });
+    };
+
+    const queueBgmMarqueeState = () => {
+        if (bgmMarqueeRaf) {
+            window.cancelAnimationFrame(bgmMarqueeRaf);
+        }
+        bgmMarqueeRaf = window.requestAnimationFrame(() => {
+            bgmMarqueeRaf = 0;
+            updateBgmMarqueeState();
+        });
+    };
+
+    const hashBgmSeed = (seed) => {
+        let hash = 2166136261;
+        for (let i = 0; i < seed.length; i += 1) {
+            hash ^= seed.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+    };
+
+    const getBgmCoverBaseName = (track) => {
+        if (!track || !track.src) return '';
+        const pathPart = track.src.split('?')[0];
+        const filename = pathPart.split('/').pop() || '';
+        return filename.replace(/\.[^.]+$/, '');
+    };
+
+    const applyGeneratedBgmCover = (track) => {
+        if (!bgmCoverArtEl) return;
+        const seed = `${track?.filename || ''}|${track?.src || ''}`;
+        const hash = hashBgmSeed(seed);
+        const hueA = hash % 360;
+        const hueB = (hueA + 36 + ((hash >>> 8) % 120)) % 360;
+        const hueC = (hueA + 170 + ((hash >>> 16) % 130)) % 360;
+        const satA = 62 + (hash % 26);
+        const satB = 58 + ((hash >>> 6) % 30);
+        const satC = 50 + ((hash >>> 12) % 24);
+        const litA = 55 + ((hash >>> 4) % 16);
+        const litB = 47 + ((hash >>> 10) % 14);
+        const litC = 20 + ((hash >>> 18) % 14);
+
+        bgmCoverArtEl.style.setProperty('--bgm-cover-h1', String(hueA));
+        bgmCoverArtEl.style.setProperty('--bgm-cover-h2', String(hueB));
+        bgmCoverArtEl.style.setProperty('--bgm-cover-h3', String(hueC));
+        bgmCoverArtEl.style.setProperty('--bgm-cover-s1', `${satA}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-s2', `${satB}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-s3', `${satC}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-l1', `${litA}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-l2', `${litB}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-l3', `${litC}%`);
+        bgmCoverArtEl.style.setProperty('--bgm-cover-url', 'none');
+        bgmCoverArtEl.classList.remove('has-image');
+    };
+
+    const applyImageBgmCover = (url) => {
+        if (!bgmCoverArtEl) return;
+        const escapedUrl = String(url).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        bgmCoverArtEl.style.setProperty('--bgm-cover-url', `url("${escapedUrl}")`);
+        bgmCoverArtEl.classList.add('has-image');
+    };
+
+    const checkBgmImageExists = (url) => new Promise((resolve) => {
+        const img = new Image();
+        let settled = false;
+        const finalize = (result) => {
+            if (settled) return;
+            settled = true;
+            img.onload = null;
+            img.onerror = null;
+            resolve(result);
+        };
+        img.onload = () => finalize(true);
+        img.onerror = () => finalize(false);
+        img.src = url;
+    });
+
+    const resolveBgmCoverUrl = async (track, libraryKey) => {
+        if (track && typeof track.cover === 'string' && track.cover.trim()) {
+            return encodeURI(track.cover.trim());
+        }
+
+        const normalizedLibrary = normalizeBgmLibrary(libraryKey);
+        const libraryConfig = AUDIO_LIBRARY_CONFIG[normalizedLibrary];
+        const baseName = getBgmCoverBaseName(track);
+        const coverCache = bgmCoverCacheByLibrary[normalizedLibrary] || bgmCoverCacheByLibrary.bgm;
+
+        if (baseName && coverCache.has(baseName)) {
+            return coverCache.get(baseName);
+        }
+
+        if (baseName) {
+            for (const ext of BGM_COVER_EXTENSIONS) {
+                const rawPath = `assets/${libraryConfig.folder}/covers/${baseName}.${ext}`;
+                const candidateUrl = encodeURI(rawPath);
+                const exists = await checkBgmImageExists(candidateUrl);
+                if (exists) {
+                    coverCache.set(baseName, candidateUrl);
+                    return candidateUrl;
+                }
+            }
+
+            coverCache.set(baseName, null);
+        }
+
+        return null;
+    };
+
+    const updateBgmCoverUi = async (track) => {
+        if (!bgmCoverArtEl || !track) return;
+        const libraryKey = bgmLibrary;
+        const requestToken = ++bgmCoverRequestToken;
+        applyGeneratedBgmCover(track);
+        const coverUrl = await resolveBgmCoverUrl(track, libraryKey);
+        if (requestToken !== bgmCoverRequestToken || !bgmCoverArtEl || libraryKey !== bgmLibrary) return;
+        if (coverUrl) {
+            applyImageBgmCover(coverUrl);
+        }
+    };
+
+    const setBgmTrackUi = () => {
+        const activeTrack = BGM_TRACKS[bgmTrackIndex];
+        if (bgmCurrentTrackEl) {
+            const trackTitle = activeTrack ? activeTrack.title : (bgmCurrentTrackEl.textContent || '');
+            ensureBgmMarqueeTextNode(bgmCurrentTrackEl, trackTitle);
+            bgmCurrentTrackEl.removeAttribute('title');
+        }
+        queueBgmMarqueeState();
+        if (activeTrack) {
+            void updateBgmCoverUi(activeTrack);
+        } else {
+            applyGeneratedBgmCover({ filename: bgmLibrary, src: `library:${bgmLibrary}` });
+        }
+        if (!bgmTrackListEl) return;
+        bgmTrackListEl.querySelectorAll('.bgm-track-btn').forEach((btn) => {
+            const btnIndex = Number(btn.dataset.index);
+            const isActive = btnIndex === bgmTrackIndex;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        setBgmTimeUi({ force: true });
+        setBgmPlayPauseUi();
+    };
+
+    const applyBgmOpacity = (value) => {
+        if (!bgmWidgetEl) return;
+        bgmWidgetEl.style.setProperty('--bgm-opacity', String(value));
+    };
+
+    const runBgmDockMotion = () => {
+        if (!bgmWidgetEl) {
+            bgmDockMotionRaf = 0;
+            return;
+        }
+        bgmDockShift += (bgmDockTargetShift - bgmDockShift) * 0.18;
+        bgmDockTargetShift *= 0.86;
+
+        if (Math.abs(bgmDockShift) < 0.05 && Math.abs(bgmDockTargetShift) < 0.05) {
+            bgmDockShift = 0;
+            bgmDockTargetShift = 0;
+            bgmWidgetEl.style.setProperty('--bgm-scroll-shift', '0px');
+            bgmDockMotionRaf = 0;
+            return;
+        }
+
+        bgmWidgetEl.style.setProperty('--bgm-scroll-shift', `${bgmDockShift.toFixed(2)}px`);
+        bgmDockMotionRaf = window.requestAnimationFrame(runBgmDockMotion);
+    };
+
+    const handleBgmDockScroll = () => {
+        const currentY = window.scrollY || window.pageYOffset || 0;
+        const delta = currentY - bgmLastScrollY;
+        bgmLastScrollY = currentY;
+        if (Math.abs(delta) < 1) return;
+
+        bgmDockTargetShift = Math.max(-14, Math.min(14, bgmDockTargetShift + (delta * 0.12)));
+        if (!bgmDockMotionRaf) {
+            bgmDockMotionRaf = window.requestAnimationFrame(runBgmDockMotion);
+        }
+    };
+
+    const renderBgmTrackList = () => {
+        if (!bgmTrackListEl) return;
+        bgmHoveredTrackIndex = -1;
+        bgmTrackListEl.innerHTML = '';
+        if (!BGM_TRACKS.length) {
+            const emptyItem = document.createElement('li');
+            emptyItem.className = 'bgm-track-item bgm-track-item-empty';
+            emptyItem.textContent = '사용 가능한 트랙이 없습니다.';
+            bgmTrackListEl.appendChild(emptyItem);
+            return;
+        }
+        BGM_TRACKS.forEach((track, index) => {
+            const li = document.createElement('li');
+            li.className = 'bgm-track-item';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'bgm-track-btn';
+            button.dataset.index = String(index);
+            button.setAttribute('aria-pressed', 'false');
+
+            const trackNo = document.createElement('span');
+            trackNo.className = 'bgm-track-num';
+            trackNo.textContent = String(index + 1).padStart(2, '0');
+
+            const trackTitle = document.createElement('span');
+            trackTitle.className = 'bgm-track-text';
+            trackTitle.dataset.bgmMarqueeText = track.title;
+            const trackTitleText = document.createElement('span');
+            trackTitleText.className = 'bgm-marquee-text';
+            trackTitleText.textContent = track.title;
+            trackTitle.appendChild(trackTitleText);
+            trackTitle.addEventListener('mouseenter', () => {
+                bgmHoveredTrackIndex = index;
+                queueBgmMarqueeState();
+            });
+            trackTitle.addEventListener('mouseleave', () => {
+                if (bgmHoveredTrackIndex !== index) return;
+                bgmHoveredTrackIndex = -1;
+                queueBgmMarqueeState();
+            });
+
+            button.appendChild(trackNo);
+            button.appendChild(trackTitle);
+            li.appendChild(button);
+            bgmTrackListEl.appendChild(li);
+        });
+    };
+
+    const setBgmTrack = (index, options) => {
+        if (!bgmAudioEl || !BGM_TRACKS.length) return;
+        const resolvedOptions = options || {};
+        const normalizedIndex = clampTrackIndex(index, bgmLibrary);
+        const selectedTrack = BGM_TRACKS[normalizedIndex];
+        if (!selectedTrack) return;
+        const shouldAutoplay = Boolean(resolvedOptions.autoplay);
+        const resetTime = Boolean(resolvedOptions.resetTime);
+
+        bgmTrackIndex = normalizedIndex;
+        bgmTrackIndicesByLibrary[bgmLibrary] = bgmTrackIndex;
+        const currentTrackIndexKey = getTrackIndexKey(bgmLibrary);
+        localStorage.setItem(currentTrackIndexKey, String(bgmTrackIndex));
+        if (bgmLibrary === 'bgm') {
+            localStorage.setItem(BGM_TRACK_INDEX_LEGACY_KEY, String(bgmTrackIndex));
+        }
+
+        const currentSrc = bgmAudioEl.getAttribute('src');
+        const srcChanged = currentSrc !== selectedTrack.src;
+        if (srcChanged) {
+            bgmAudioEl.setAttribute('src', selectedTrack.src);
+            bgmAudioEl.load();
+        }
+        if (resetTime && !srcChanged) {
+            bgmAudioEl.currentTime = 0;
+        }
+
+        setBgmTrackUi();
+
+        if (shouldAutoplay && bgmEnabled) {
+            setBgmStatus('재생 시작 중...');
+            void tryStartBgm();
+        } else if (!bgmEnabled) {
+            setBgmStatus('꺼짐');
+        } else {
+            setBgmStatus(getBgmStatusText());
+        }
+        setBgmTimeUi({ force: true });
+        setBgmPlayPauseUi();
+    };
+
+    const switchBgmLibrary = (libraryKey, options) => {
+        const normalizedLibrary = normalizeBgmLibrary(libraryKey);
+        const resolvedOptions = options || {};
+        const shouldAutoplay = Boolean(resolvedOptions.autoplay);
+        const resetTime = Boolean(resolvedOptions.resetTime);
+
+        bgmTrackIndicesByLibrary[bgmLibrary] = bgmTrackIndex;
+        bgmCoverRequestToken += 1;
+        bgmLibrary = normalizedLibrary;
+        BGM_TRACKS = AUDIO_TRACKS_BY_LIBRARY[bgmLibrary] || [];
+        localStorage.setItem(BGM_LIBRARY_KEY, bgmLibrary);
+
+        const savedIndex = bgmTrackIndicesByLibrary[bgmLibrary];
+        bgmTrackIndex = clampTrackIndex(savedIndex, bgmLibrary);
+        bgmTrackIndicesByLibrary[bgmLibrary] = bgmTrackIndex;
+
+        setBgmLibraryUi();
+        renderBgmTrackList();
+
+        if (!BGM_TRACKS.length) {
+            if (bgmAudioEl) {
+                bgmAudioEl.pause();
+                bgmAudioEl.removeAttribute('src');
+                bgmAudioEl.load();
+            }
+            setBgmTrackUi();
+            setBgmStatus('사용 가능한 트랙이 없습니다.');
+            return;
+        }
+
+        setBgmTrack(bgmTrackIndex, { autoplay: shouldAutoplay, resetTime });
+    };
+
+    const syncBgmTrackBeforePlaybackStart = () => {
+        if (!bgmAudioEl || !BGM_TRACKS.length) return;
+        const normalizedIndex = clampTrackIndex(bgmTrackIndex, bgmLibrary);
+        const activeTrack = BGM_TRACKS[normalizedIndex];
+        if (!activeTrack) return;
+
+        if (bgmAudioEl.getAttribute('src') !== activeTrack.src) {
+            setBgmTrack(normalizedIndex, { autoplay: false, resetTime: true });
+            return;
+        }
+
+        if (!Number.isFinite(bgmAudioEl.currentTime) || bgmAudioEl.currentTime < 0) {
+            bgmAudioEl.currentTime = 0;
+        }
+    };
+
+    const removeBgmUnlockListeners = () => {
+        if (!bgmUnlockArmed) return;
+        document.removeEventListener('pointerdown', handleBgmUnlock);
+        document.removeEventListener('keydown', handleBgmUnlock);
+        bgmUnlockArmed = false;
+    };
+
+    const addBgmUnlockListeners = () => {
+        if (bgmUnlockArmed) return;
+        document.addEventListener('pointerdown', handleBgmUnlock);
+        document.addEventListener('keydown', handleBgmUnlock);
+        bgmUnlockArmed = true;
+    };
+
+    const tryStartBgm = async () => {
+        if (!bgmAudioEl || !bgmEnabled) return false;
+        try {
+            await bgmAudioEl.play();
+            removeBgmUnlockListeners();
+            setBgmStatus(getBgmStatusText());
+            setBgmPlayPauseUi();
+            return true;
+        } catch (_error) {
+            setBgmStatus('자동 재생이 차단되었습니다. 화면을 한 번 터치/클릭한 뒤 재생을 눌러주세요.');
+            addBgmUnlockListeners();
+            setBgmPlayPauseUi();
+            return false;
+        }
+    };
+
+    function handleBgmUnlock() {
+        removeBgmUnlockListeners();
+        if (bgmEnabled && bgmAudioEl && bgmAudioEl.paused) {
+            setBgmStatus('\uC7AC\uC0DD \uBC84\uD2BC\uC744 \uB20C\uB7EC\uC8FC\uC138\uC694.');
+        }
+    }
+
+    const handleBgmEnded = () => {
+        if (!bgmAudioEl || !BGM_TRACKS.length) return;
+
+        if (bgmRepeatMode === 'one') {
+            bgmAudioEl.currentTime = 0;
+            if (bgmEnabled) {
+                void tryStartBgm();
+            }
+            return;
+        }
+
+        const isLastTrack = bgmTrackIndex >= BGM_TRACKS.length - 1;
+
+        if (bgmRepeatMode === 'all') {
+            const nextIndex = isLastTrack ? 0 : (bgmTrackIndex + 1);
+            setBgmTrack(nextIndex, { autoplay: bgmEnabled, resetTime: false });
+            return;
+        }
+
+        if (!isLastTrack) {
+            setBgmTrack(bgmTrackIndex + 1, { autoplay: bgmEnabled, resetTime: false });
+            return;
+        }
+
+        bgmAudioEl.pause();
+        setBgmStatus('재생이 종료되었습니다.');
+        setBgmPlayPauseUi();
+    };
+
+    const initBgmControls = () => {
+        bgmAudioEl = document.getElementById('bgm-audio');
+        bgmWidgetEl = document.getElementById('bgm-widget');
+        bgmToggleBtn = document.getElementById('bgm-toggle-btn');
+        bgmPlayPauseBtn = document.getElementById('bgm-play-pause-btn');
+        bgmPrevBtn = document.getElementById('bgm-prev-btn');
+        bgmNextBtn = document.getElementById('bgm-next-btn');
+        bgmCollapseBtn = document.getElementById('bgm-collapse-btn');
+        bgmTrackListEl = document.getElementById('bgm-track-list');
+        bgmCurrentTrackEl = document.getElementById('bgm-current-track');
+        bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+        bgmOpacitySlider = document.getElementById('bgm-opacity-slider');
+        bgmSeekSlider = document.getElementById('bgm-seek-slider');
+        bgmTimeDisplayEl = document.getElementById('bgm-time-display');
+        bgmRepeatBtn = document.getElementById('bgm-repeat-btn');
+        bgmLibraryBgmBtn = document.getElementById('bgm-library-bgm-btn');
+        bgmLibraryOstBtn = document.getElementById('bgm-library-ost-btn');
+        bgmStatusEl = document.getElementById('bgm-status');
+        bgmCoverArtEl = document.getElementById('bgm-cover-art');
+        if (!bgmAudioEl || !bgmWidgetEl || !bgmToggleBtn || !bgmPlayPauseBtn || !bgmPrevBtn || !bgmNextBtn || !bgmCollapseBtn || !bgmTrackListEl || !bgmCurrentTrackEl || !bgmVolumeSlider || !bgmOpacitySlider || !bgmStatusEl || !bgmSeekSlider || !bgmTimeDisplayEl || !bgmRepeatBtn) return;
+
+        const savedVolume = clampVolume(localStorage.getItem(BGM_VOLUME_KEY));
+        const savedOpacity = clampOpacity(localStorage.getItem(BGM_OPACITY_KEY));
+
+        localStorage.removeItem(BGM_TRACK_INDEX_LEGACY_KEY);
+        AUDIO_LIBRARY_KEYS.forEach((libraryKey) => {
+            bgmTrackIndicesByLibrary[libraryKey] = 0;
+            localStorage.removeItem(getTrackIndexKey(libraryKey));
+        });
+        localStorage.removeItem(BGM_LIBRARY_KEY);
+
+        bgmLibrary = 'bgm';
+        BGM_TRACKS = AUDIO_TRACKS_BY_LIBRARY.bgm || [];
+        bgmTrackIndex = 0;
+
+        const savedEnabledRaw = localStorage.getItem(BGM_ENABLED_KEY);
+        bgmEnabled = isStoredTrue(savedEnabledRaw);
+        const savedCollapsedRaw = localStorage.getItem(BGM_COLLAPSED_KEY);
+        const savedCollapsed = isStoredTrue(savedCollapsedRaw);
+        const savedMinimizedMobileRaw = localStorage.getItem(BGM_MINIMIZED_MOBILE_KEY);
+        const hasSavedMinimizedMobile = isStoredBoolean(savedMinimizedMobileRaw);
+        bgmDesktopCollapsed = savedCollapsed;
+        bgmCollapsed = savedCollapsed;
+        bgmDesktopMinimized = false;
+        bgmMinimizedMobile = hasSavedMinimizedMobile ? isStoredTrue(savedMinimizedMobileRaw) : false;
+        if (isBgmMobileViewport()) {
+            bgmMinimizedMobile = true;
+        }
+        bgmWasMobileViewport = isBgmMobileViewport();
+        syncBgmCollapseStateForViewport();
+        bgmRepeatMode = normalizeRepeatMode(localStorage.getItem(BGM_REPEAT_MODE_KEY));
+
+        localStorage.setItem(BGM_COLLAPSED_KEY, bgmDesktopCollapsed ? '1' : '0');
+        if (hasSavedMinimizedMobile || isBgmMobileViewport()) {
+            localStorage.setItem(BGM_MINIMIZED_MOBILE_KEY, bgmMinimizedMobile ? '1' : '0');
+        }
+        localStorage.setItem(BGM_REPEAT_MODE_KEY, bgmRepeatMode);
+        localStorage.setItem(BGM_LIBRARY_KEY, bgmLibrary);
+
+        setBgmCollapseUi();
+        setBgmLibraryUi();
+        switchBgmLibrary('bgm', { autoplay: false, resetTime: true });
+
+        bgmAudioEl.volume = savedVolume;
+        bgmVolumeSlider.value = String(savedVolume);
+        bgmOpacitySlider.value = String(savedOpacity);
+        applyBgmOpacity(savedOpacity);
+        setBgmToggleUi();
+        setBgmPlayPauseUi();
+        setBgmRepeatUi();
+        setBgmTimeUi({ force: true });
+        bgmLastScrollY = window.scrollY || window.pageYOffset || 0;
+
+        bgmAudioEl.addEventListener('play', () => {
+            if (bgmEnabled) setBgmStatus(getBgmStatusText());
+            setBgmPlayPauseUi();
+        });
+        bgmAudioEl.addEventListener('pause', () => {
+            if (bgmEnabled) setBgmStatus(getBgmStatusText());
+            setBgmPlayPauseUi();
+        });
+        bgmAudioEl.addEventListener('loadedmetadata', () => {
+            setBgmTimeUi({ force: true });
+        });
+        bgmAudioEl.addEventListener('durationchange', () => {
+            setBgmTimeUi({ force: true });
+        });
+        bgmAudioEl.addEventListener('timeupdate', () => {
+            setBgmTimeUi();
+        });
+        bgmAudioEl.addEventListener('ended', () => {
+            handleBgmEnded();
+        });
+        bgmAudioEl.addEventListener('error', () => {
+            setBgmStatus('트랙을 불러오지 못했습니다.');
+            setBgmPlayPauseUi();
+        });
+
+        bgmToggleBtn.addEventListener('click', async () => {
+            bgmEnabled = !bgmEnabled;
+            localStorage.setItem(BGM_ENABLED_KEY, bgmEnabled ? '1' : '0');
+            setBgmToggleUi();
+
+            if (bgmEnabled) {
+                if (!BGM_TRACKS.length) {
+                    setBgmStatus('사용 가능한 트랙이 없습니다.');
+                    setBgmPlayPauseUi();
+                    return;
+                }
+                setBgmStatus('재생 시작 중...');
+                syncBgmTrackBeforePlaybackStart();
+                await tryStartBgm();
+            } else {
+                bgmAudioEl.pause();
+                removeBgmUnlockListeners();
+                setBgmStatus('꺼짐');
+            }
+            setBgmPlayPauseUi();
+        });
+
+        bgmPlayPauseBtn.addEventListener('click', async () => {
+            if (!bgmEnabled) {
+                bgmEnabled = true;
+                localStorage.setItem(BGM_ENABLED_KEY, '1');
+                setBgmToggleUi();
+                if (!BGM_TRACKS.length) {
+                    setBgmStatus('사용 가능한 트랙이 없습니다.');
+                    setBgmPlayPauseUi();
+                    return;
+                }
+                setBgmStatus(BGM_STATUS_STARTING);
+                syncBgmTrackBeforePlaybackStart();
+                await tryStartBgm();
+                return;
+            }
+
+            if (bgmAudioEl.paused) {
+                setBgmStatus(BGM_STATUS_STARTING);
+                syncBgmTrackBeforePlaybackStart();
+                await tryStartBgm();
+            } else {
+                bgmAudioEl.pause();
+                setBgmStatus('일시정지');
+            }
+            setBgmPlayPauseUi();
+        });
+
+        bgmCollapseBtn.addEventListener('click', () => {
+            if (isBgmMobileViewport()) {
+                bgmMinimizedMobile = !bgmMinimizedMobile;
+                bgmCollapsed = true;
+                localStorage.setItem(BGM_MINIMIZED_MOBILE_KEY, bgmMinimizedMobile ? '1' : '0');
+                setBgmCollapseUi();
+                return;
+            }
+
+            if (bgmDesktopMinimized) {
+                bgmDesktopMinimized = false;
+                bgmDesktopCollapsed = false;
+            } else if (bgmDesktopCollapsed) {
+                bgmDesktopMinimized = true;
+                bgmDesktopCollapsed = true;
+            } else {
+                bgmDesktopCollapsed = true;
+                bgmDesktopMinimized = false;
+            }
+            bgmCollapsed = bgmDesktopCollapsed;
+            localStorage.setItem(BGM_COLLAPSED_KEY, bgmDesktopCollapsed ? '1' : '0');
+            setBgmCollapseUi();
+        });
+
+        bgmVolumeSlider.addEventListener('input', () => {
+            const volume = clampVolume(bgmVolumeSlider.value);
+            bgmAudioEl.volume = volume;
+            localStorage.setItem(BGM_VOLUME_KEY, String(volume));
+
+            if (!bgmEnabled) {
+                setBgmStatus('꺼짐');
+                return;
+            }
+            if (volume === 0) {
+                setBgmStatus('음소거');
+                return;
+            }
+            setBgmStatus(getBgmStatusText());
+        });
+
+        if (bgmLibraryBgmBtn) {
+            bgmLibraryBgmBtn.addEventListener('click', () => {
+                if (bgmLibrary === 'bgm') return;
+                const shouldAutoplay = Boolean(bgmEnabled && bgmAudioEl && !bgmAudioEl.paused);
+                switchBgmLibrary('bgm', { autoplay: shouldAutoplay, resetTime: false });
+            });
+        }
+        if (bgmLibraryOstBtn) {
+            bgmLibraryOstBtn.addEventListener('click', () => {
+                if (bgmLibrary === 'ost') return;
+                const shouldAutoplay = Boolean(bgmEnabled && bgmAudioEl && !bgmAudioEl.paused);
+                switchBgmLibrary('ost', { autoplay: shouldAutoplay, resetTime: false });
+            });
+        }
+
+        bgmOpacitySlider.addEventListener('input', () => {
+            const opacity = clampOpacity(bgmOpacitySlider.value);
+            applyBgmOpacity(opacity);
+            localStorage.setItem(BGM_OPACITY_KEY, String(opacity));
+        });
+
+        bgmPrevBtn.addEventListener('click', () => {
+            setBgmTrack(bgmTrackIndex - 1, { autoplay: bgmEnabled, resetTime: true });
+        });
+
+        bgmNextBtn.addEventListener('click', () => {
+            setBgmTrack(bgmTrackIndex + 1, { autoplay: bgmEnabled, resetTime: true });
+        });
+
+        bgmRepeatBtn.addEventListener('click', () => {
+            const currentIndex = BGM_REPEAT_MODES.indexOf(bgmRepeatMode);
+            const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % BGM_REPEAT_MODES.length : 0;
+            bgmRepeatMode = BGM_REPEAT_MODES[nextIndex];
+            localStorage.setItem(BGM_REPEAT_MODE_KEY, bgmRepeatMode);
+            setBgmRepeatUi();
+        });
+
+        bgmSeekSlider.addEventListener('input', () => {
+            if (!bgmAudioEl) return;
+            bgmSeekDragging = true;
+            const nextTime = Number(bgmSeekSlider.value);
+            const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
+            if (Number.isFinite(nextTime) && duration > 0 && bgmTimeDisplayEl) {
+                bgmTimeDisplayEl.textContent = `${formatBgmTime(nextTime)} / ${formatBgmTime(duration)}`;
+                const progressPercent = Math.max(0, Math.min(100, (nextTime / duration) * 100));
+                bgmSeekSlider.style.setProperty('--bgm-progress-percent', `${progressPercent.toFixed(2)}%`);
+            } else {
+                bgmSeekSlider.style.setProperty('--bgm-progress-percent', '0%');
+            }
+        });
+
+        bgmSeekSlider.addEventListener('change', () => {
+            if (!bgmAudioEl) return;
+            const nextTime = Number(bgmSeekSlider.value);
+            if (Number.isFinite(nextTime)) {
+                bgmAudioEl.currentTime = Math.max(0, nextTime);
+            }
+            bgmSeekDragging = false;
+            setBgmTimeUi({ force: true });
+        });
+
+        bgmSeekSlider.addEventListener('blur', () => {
+            bgmSeekDragging = false;
+            setBgmTimeUi({ force: true });
+        });
+
+        bgmTrackListEl.addEventListener('click', (event) => {
+            if (!(event.target instanceof Element)) return;
+            const targetButton = event.target.closest('.bgm-track-btn');
+            if (!targetButton) return;
+            const targetIndex = Number(targetButton.dataset.index);
+            if (!Number.isFinite(targetIndex)) return;
+            setBgmTrack(targetIndex, { autoplay: bgmEnabled, resetTime: true });
+        });
+
+        window.addEventListener('scroll', handleBgmDockScroll, { passive: true });
+        window.addEventListener('resize', () => {
+            const isMobile = isBgmMobileViewport();
+            if (isMobile && !bgmWasMobileViewport) {
+                bgmMinimizedMobile = true;
+                localStorage.setItem(BGM_MINIMIZED_MOBILE_KEY, '1');
+            }
+            bgmWasMobileViewport = isMobile;
+            setBgmCollapseUi();
+            queueBgmMarqueeState();
+        });
+        bgmCurrentTrackEl.addEventListener('mouseenter', () => {
+            bgmCurrentTrackHovering = true;
+            queueBgmMarqueeState();
+        });
+        bgmCurrentTrackEl.addEventListener('mouseleave', () => {
+            bgmCurrentTrackHovering = false;
+            queueBgmMarqueeState();
+        });
+        window.setTimeout(queueBgmMarqueeState, 120);
+
+        if (bgmEnabled && !BGM_TRACKS.length) {
+            setBgmStatus('\uC0AC\uC6A9 \uAC00\uB2A5\uD55C \uD2B8\uB799\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
+            setBgmPlayPauseUi();
+        } else if (bgmEnabled) {
+            bgmAudioEl.pause();
+            removeBgmUnlockListeners();
+            setBgmStatus(getBgmStatusText());
+            setBgmPlayPauseUi();
+        } else {
+            setBgmStatus(getBgmStatusText());
+            setBgmPlayPauseUi();
+        }
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('beforeunload', (e) => {
@@ -29,6 +1283,9 @@ if (!window.hasMainJsRun) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         const loader = document.getElementById('global-loader');
         if(loader) loader.classList.remove('hidden');
+        void loadAllAudioTracksFromManifest().finally(() => {
+            initBgmControls();
+        });
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#btn-search-type-desktop') && !e.target.closest('#btn-search-type-mobile')) {
@@ -59,7 +1316,7 @@ if (!window.hasMainJsRun) {
         if(typeof fetchVersion === 'function') {
             fetchVersion().then(v => {
                 const vText = document.getElementById('version-text');
-                if(v && vText) vText.innerText = "최신버전  " + v;
+                if (v && vText) vText.innerText = "최신버전  " + v;
             });
         }
 
@@ -200,7 +1457,7 @@ if (!window.hasMainJsRun) {
             keyword = (input1 ? input1.value.trim() : '') || (input2 ? input2.value.trim() : '');
         }
         
-        if(!keyword || keyword.length < 2) return showAlert("검색어는 2글자 이상 입력해주세요.");
+        if(!keyword || keyword.length < 2) return showAlert("寃?됱뼱??2湲???댁긽 ?낅젰?댁＜?몄슂.");
 
         const mBtn = document.getElementById('btn-search-type-mobile');
         let searchType = 'all';
@@ -227,9 +1484,9 @@ if (!window.hasMainJsRun) {
             target = currentPost.comments.find(c => c.id == targetId || c.created_at == targetId); 
         }
 
-        if (!target) return showAlert("항목을 찾을 수 없습니다.");
+        if (!target) return showAlert("??ぉ??李얠쓣 ???놁뒿?덈떎.");
         if(isAdmin) { executeAction(actionType, targetId, target); return; }
-        if(target.author === '하포카' || target.author === 'Admin') return showAlert("공지사항 수정 및 삭제 불가");
+        if(target.author === '???' || target.author === 'Admin') return showAlert("????????????? ??????? ????????? ???????");
 
         pendingActionType = actionType;
         pendingTargetId = targetId;
@@ -241,11 +1498,11 @@ if (!window.hasMainJsRun) {
 
     window.confirmPasswordAction = async function() {
         const inputPw = document.getElementById('verificationPw').value.trim();
-        if(!inputPw) return showAlert("비밀번호 입력 필요");
+        if(!inputPw) return showAlert("鍮꾨?踰덊샇 ?낅젰 ?꾩슂");
         if (!pendingTarget) return closePasswordModal();
         
         const dbClient = getDbClient();
-        if (!dbClient) return showAlert("오프라인 상태에서는 확인할 수 없습니다.");
+        if (!dbClient) return showAlert("?ㅽ봽?쇱씤 ?곹깭?먯꽌???뺤씤?????놁뒿?덈떎.");
 
         const hashedInput = await sha256(inputPw);
         
@@ -260,8 +1517,8 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
-                    else return showAlert("오류 발생: " + error.message);
+                    if(error.code === '42883') return showAlert("DB ?⑥닔 ?ㅻ쪟: 愿由ъ옄?먭쾶 臾몄쓽?섏꽭??");
+                    else return showAlert("?ㅻ쪟 諛쒖깮: " + error.message);
                 }
                 
                 if (data === true) isValid = true;
@@ -273,15 +1530,15 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
-                     else return showAlert("오류 발생: " + error.message);
+                     if(error.code === '42883') return showAlert("DB ?⑥닔 ?ㅻ쪟: 愿由ъ옄?먭쾶 臾몄쓽?섏꽭??");
+                     else return showAlert("?ㅻ쪟 諛쒖깮: " + error.message);
                 }
 
                 if (data === true) isValid = true;
             }
         } catch (e) {
             console.error("System error:", e);
-            return showAlert("시스템 오류 발생");
+            return showAlert("?쒖뒪???ㅻ쪟 諛쒖깮");
         }
 
         if(isValid) {
@@ -292,7 +1549,7 @@ if (!window.hasMainJsRun) {
             pendingActionType = null;
             setTimeout(() => executeAction(a, i, t), 300);
         } else {
-            showAlert("비밀번호 불일치");
+            showAlert("Verification failed.");
             document.getElementById('verificationPw').value = '';
         }
     }
@@ -302,9 +1559,17 @@ if (!window.hasMainJsRun) {
     window.closeAlert = closeAlert;
 
     function executeAction(type, id, targetObj) {
-        if(type === 'delete_post') showConfirm("삭제하시겠습니까?", () => deletePost(id), "삭제", "삭제하기");
+        if(type === 'delete_post') showConfirm("??젣?섏떆寃좎뒿?덇퉴?", () => deletePost(id), "??젣", "??젣?섍린");
         else if(type === 'edit_post') goEditMode(targetObj);
-        else if(type === 'delete_comment') showConfirm("삭제하시겠습니까?", () => deleteComment(id), "삭제", "삭제하기");
+        else if(type === 'delete_comment') showConfirm("??젣?섏떆寃좎뒿?덇퉴?", () => deleteComment(id), "??젣", "??젣?섍린");
         else if(type === 'edit_comment') loadCommentForEdit(targetObj);
     }
 }
+
+
+
+
+
+
+
+
