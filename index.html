@@ -20,7 +20,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' rx='20' fill='%232563eb'/><path d='M50 25 L75 37.5 V62.5 L50 75 L25 62.5 V37.5 Z' fill='none' stroke='white' stroke-width='4'/><path d='M50 25 L50 50 L75 37.5' fill='none' stroke='white' stroke-width='4'/><path d='M50 50 L25 37.5' fill='none' stroke='white' stroke-width='4'/><path d='M50 50 L50 75' fill='none' stroke='white' stroke-width='4'/></svg>">
     
-    <script src="https://www.google.com/recaptcha/api.js?render=6LctpzAsAAAAAOgrbueew_LT_KmAuPkU3pcg6ozD"></script>
+        <script src="https://www.google.com/recaptcha/api.js?render=6LctpzAsAAAAAOgrbueew_LT_KmAuPkU3pcg6ozD"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
 
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://www.googletagmanager.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https: blob:; frame-src 'self' https://www.youtube.com https://www.google.com;">
@@ -39,6 +39,7 @@
             }
         }
     </script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -49,7 +50,7 @@
     
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-200 antialiased min-h-screen flex flex-col relative overflow-x-hidden selection:bg-blue-100 selection:text-blue-700 dark:selection:bg-blue-900 dark:selection:text-blue-200" ondragstart="return false">
+<body class="bg-slate-50 dark:bg-black text-slate-800 dark:text-slate-200 antialiased min-h-screen flex flex-col relative selection:bg-blue-100 selection:text-blue-700 dark:selection:bg-blue-900 dark:selection:text-blue-200" ondragstart="return false">
 
     <div id="snow-container"></div>
 
@@ -164,8 +165,8 @@
         </div>
     </nav>
 
-        <main id="view-home" class="view-section hidden flex-grow">
-        <section class="home-video-hero relative overflow-hidden">
+        <main id="view-home" class="view-section hidden flex-grow w-full">
+        <section class="home-video-hero relative overflow-hidden w-full">
             <div class="home-hero-fallback" aria-hidden="true"></div>
             <video class="home-hero-video" autoplay muted loop playsinline preload="metadata" onerror="this.style.display='none'">
                 <source src="assets/demo.mp4" type="video/mp4">
@@ -173,30 +174,25 @@
             <div class="home-hero-overlay" aria-hidden="true"></div>
 
             <div class="relative z-10 mx-auto max-w-5xl px-4 text-center">
-<div class="max-w-4xl mx-auto mb-16">
-                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-bold mb-6">
-                    <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span id="version-text">v0.1 업데이트 확인 중...</span>
+                <div class="max-w-4xl mx-auto mb-16">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-sm font-bold mb-6">
+                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        <span id="version-text">v0.1 업데이트 확인 중...</span>
+                    </div>
+                    <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white mb-6 leading-tight">서버 구축, <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">한방에 해결하세요.</span></h1>
+                    <p class="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">자동 구축 순서를 따라 쉽게 진행하고,<br>오류해결소에서 빠르게 문제를 해결하세요.</p>
+                    <div class="mt-8 flex justify-center gap-4">
+                        <button onclick="openCategoryModal()" class="px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition shadow-lg shadow-slate-900/20">질문하기</button>
+                        <button onclick="goDownload()" class="px-6 py-3 rounded-xl bg-white dark:bg-black border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm">다운로드</button>
+                    </div>
                 </div>
-                <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white mb-6 leading-tight">
-                    서버 구축, <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">한방에 해결하세요.</span>
-                </h1>
-                <p class="text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
-                    자동 구축 프로그램으로 쉽게 구축하고,<br>
-                    오류해결소에서 쉽게 해결하세요.
-                </p>
-                <div class="mt-8 flex justify-center gap-4">
-                    <button onclick="openCategoryModal()" class="px-6 py-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition shadow-lg shadow-slate-900/20">질문하기</button>
-                    <button onclick="goDownload()" class="px-6 py-3 rounded-xl bg-white dark:bg-black border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm">다운로드</button>
-                </div>
-            </div>
             </div>
         </section>
 
         <section class="home-content-block home-content-block--youtube px-4 py-16 md:py-20">
             <div class="max-w-6xl mx-auto">
                 <div class="home-section-head">
-                    <h2 class="home-section-title">YouTube 영상</h2>
+                    <h2 class="home-section-title">유튜브 영상</h2>
                 </div>
                 <div id="yt-mosaic-grid" class="yt-mosaic-grid"></div>
             </div>
@@ -713,6 +709,45 @@
         </div>
     </div>
 
+                <audio id="bgm-audio" preload="metadata"></audio>
+    <div id="bgm-widget" class="bgm-dock" aria-label="음악 플레이어">
+        <div class="bgm-dock-head">
+            <div class="bgm-library-tabs" role="tablist" aria-label="오디오 라이브러리">
+                <button id="bgm-library-bgm-btn" type="button" class="bgm-library-tab is-active" data-library="bgm" role="tab" aria-selected="true">BGM</button>
+                <button id="bgm-library-ost-btn" type="button" class="bgm-library-tab" data-library="ost" role="tab" aria-selected="false">OST</button>
+            </div>
+            <div class="bgm-dock-actions">
+                <button id="bgm-toggle-btn" type="button" class="bgm-power-btn">꺼짐</button>
+                <button id="bgm-collapse-btn" type="button" class="bgm-utility-btn" aria-label="플레이어 접기" aria-expanded="true" title="접기">
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
+            </div>
+        </div>
+        <div class="bgm-track-focus">
+            <div class="bgm-track-identity">
+                <div id="bgm-cover-art" class="bgm-cover-art" aria-hidden="true"></div>
+                <div class="bgm-track-meta">
+                    <p id="bgm-current-track" class="bgm-current-track">트랙 로딩 중...</p>
+                    <p id="bgm-status" class="bgm-status">꺼짐</p>
+                </div>
+            </div>
+        </div>
+        <div class="bgm-transport-row">
+            <button id="bgm-prev-btn" type="button" class="bgm-circle-btn" aria-label="이전 트랙" title="이전 트랙"><i class="fa-solid fa-backward-step"></i></button>
+            <button id="bgm-play-pause-btn" type="button" class="bgm-circle-btn bgm-play-btn" aria-label="재생" title="재생"><i class="fa-solid fa-play"></i></button>
+            <button id="bgm-next-btn" type="button" class="bgm-circle-btn" aria-label="다음 트랙" title="다음 트랙"><i class="fa-solid fa-forward-step"></i></button>
+            <button id="bgm-repeat-btn" type="button" class="bgm-repeat-btn" aria-label="반복 모드: 끔" title="반복 모드: 끔">반복: 끔</button>
+        </div>
+        <div class="bgm-time-row">
+            <span id="bgm-time-display" class="bgm-time-display">00:00 / 00:00</span>
+        </div>
+        <input id="bgm-seek-slider" type="range" min="0" max="0" step="0.1" class="bgm-slider bgm-seek-slider" value="0" aria-label="재생 위치">
+        <ul id="bgm-track-list" class="bgm-track-list" aria-label="트랙 목록"></ul>
+        <label for="bgm-volume-slider" class="bgm-slider-label">볼륨</label>
+        <input id="bgm-volume-slider" type="range" min="0" max="1" step="0.01" class="bgm-slider bgm-volume-slider" value="0.35">
+        <label for="bgm-opacity-slider" class="bgm-slider-label">투명도</label>
+        <input id="bgm-opacity-slider" type="range" min="0.2" max="1" step="0.01" class="bgm-slider bgm-opacity-slider" value="0.9">
+    </div>
     <footer id="main-footer" class="bg-white dark:bg-black border-t border-slate-100 dark:border-slate-800 py-10 mt-auto text-center relative">
         <div class="flex justify-center space-x-6 mb-4">
             <a href="https://github.com/Pretsg/Archeage_auto/releases" target="_blank" class="text-slate-400 hover:text-black dark:hover:text-white text-2xl transition"><i class="fa-brands fa-github"></i></a>
@@ -745,6 +780,14 @@
     <script src="admin.js"></script>
     <script src="router.js"></script>
     <script src="comment.js"></script>
+    <script src="assets/bgm/manifest.js"></script>
+    <script src="assets/OST/manifest.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
+
+
+
+
+
+
