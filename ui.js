@@ -685,6 +685,31 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
         container.className = "flex flex-col gap-3";
     }
 
+    // Avoid inline onclick handlers (CSP may block 'unsafe-inline').
+    if (!container._postNavHandlerAttached) {
+        container.addEventListener('click', function(e) {
+            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
+            if (!card) return;
+            var postId = card.getAttribute('data-post-id');
+            if (!postId) return;
+            if (typeof window.readPost === 'function') {
+                window.readPost(String(postId));
+            }
+        });
+        container.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
+            if (!card) return;
+            e.preventDefault();
+            var postId = card.getAttribute('data-post-id');
+            if (!postId) return;
+            if (typeof window.readPost === 'function') {
+                window.readPost(String(postId));
+            }
+        });
+        container._postNavHandlerAttached = true;
+    }
+
     postsData.forEach(function(post) {
         var safeTitle = typeof escapeHtml === 'function' ? escapeHtml(post.title) : post.title;
         var authorBadge = '';
@@ -740,10 +765,10 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
                 
             if (currentBoardType === 'free' || currentBoardType === 'test') imgHtml = ''; 
 
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-lg mb-2 line-clamp-2 transition ' + titleColor + '">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col"><div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div data-post-id="' + post.id + '" role="button" tabindex="0" class="' + cardStyle + ' rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-lg mb-2 line-clamp-2 transition ' + titleColor + '">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col"><div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         } else {
             var iconClass = currentBoardType==='notice' ? 'fa-bullhorn text-blue-500' : 'fa-file-lines';
-            html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' rounded-xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer group">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400 dark:text-slate-500"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold truncate transition ' + titleColor + '">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div data-post-id="' + post.id + '" role="button" tabindex="0" class="flex items-center p-4 ' + cardStyle + ' rounded-xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer group">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400 dark:text-slate-500"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold truncate transition ' + titleColor + '">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         }
         container.innerHTML += html;
     });
@@ -1350,6 +1375,30 @@ function renderSearchResults(results, keyword) {
     }
     noResult.classList.add('hidden');
 
+    if (container && !container._postNavHandlerAttached) {
+        container.addEventListener('click', function(e) {
+            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
+            if (!card) return;
+            var postId = card.getAttribute('data-post-id');
+            if (!postId) return;
+            if (typeof window.readPost === 'function') {
+                window.readPost(String(postId));
+            }
+        });
+        container.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
+            if (!card) return;
+            e.preventDefault();
+            var postId = card.getAttribute('data-post-id');
+            if (!postId) return;
+            if (typeof window.readPost === 'function') {
+                window.readPost(String(postId));
+            }
+        });
+        container._postNavHandlerAttached = true;
+    }
+
     const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지', 'test':'테스트'};
     const typeColor = {
         'free':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', 
@@ -1386,7 +1435,7 @@ function renderSearchResults(results, keyword) {
         
         const badgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded font-bold ${typeColor[post.type] || 'bg-gray-100 dark:bg-slate-800'}">${typeMap[post.type] || '기타'}</span>`;
 
-        container.innerHTML += `<div onclick="readPost('${post.id}')" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
+        container.innerHTML += `<div data-post-id="${post.id}" role="button" tabindex="0" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
             <div class="flex items-center gap-2 mb-2">
                 ${badgeHtml}
                 <span class="text-xs text-slate-400 dark:text-slate-500">${new Date(post.created_at).toLocaleDateString()}</span>
