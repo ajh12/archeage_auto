@@ -1003,7 +1003,7 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
         contentHtml = 
             '<div class="comment-content-short text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
             '<div class="comment-content-full hidden text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
-            '<button class="text-blue-500 dark:text-blue-400 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="window.toggleCommentContent(this)">...더보기</button>';
+            '<button type="button" class="text-blue-500 dark:text-blue-400 text-xs font-bold mt-1 hover:underline btn-more-content" data-action="toggle-content">...더보기</button>';
     } else {
         contentHtml = '<div class="text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
     }
@@ -1020,10 +1020,10 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
                         '<span class="text-xs text-slate-400 dark:text-slate-500">' + new Date(node.created_at).toLocaleString() + '</span>' +
                     '</div>' +
                     '<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition">' +
-                        '<button onclick="replyToComment(\'' + node.id + '\', \'' + node.author + '\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold mr-2"><i class="fa-solid fa-reply"></i> 답글</button>' +
-                        '<button onclick="reportComment(\'' + node.id + '\')" class="text-slate-400 hover:text-red-500 text-xs font-bold mr-2"><i class="fa-solid fa-land-mine-on"></i> 신고</button>' +
-                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'edit_comment\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs"><i class="fa-solid fa-pen"></i></button>' +
-                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'delete_comment\')" class="text-slate-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>' +
+                        '<button type="button" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold mr-2 btn-reply" data-reply-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '" data-reply-author="' + (typeof escapeHtml === 'function' ? escapeHtml(node.author) : node.author) + '"><i class="fa-solid fa-reply"></i> 답글</button>' +
+                        '<button type="button" class="text-slate-400 hover:text-red-500 text-xs font-bold mr-2 btn-comment-action" data-action="report" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-land-mine-on"></i> 신고</button>' +
+                        '<button type="button" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs btn-comment-action" data-action="password-check" data-mode="edit_comment" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-pen"></i></button>' +
+                        '<button type="button" class="text-slate-400 hover:text-red-600 text-xs btn-comment-action" data-action="password-check" data-mode="delete_comment" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-trash"></i></button>' +
                     '</div>' +
                 '</div>' +
                 contentHtml + 
@@ -1044,6 +1044,49 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
 window.renderComments = function(cmts, containerId, isAdmin) {
     var list = document.getElementById(containerId);
     if(!list) return;
+
+    if(!list._commentActionsHandlerAttached) {
+        list.addEventListener('click', function(e) {
+            var target = e.target;
+            if(!target || !target.closest) return;
+
+            var replyBtn = target.closest('button.btn-reply');
+            if(replyBtn) {
+                e.preventDefault();
+                var id = replyBtn.getAttribute('data-reply-id') || '';
+                var author = replyBtn.getAttribute('data-reply-author') || '';
+                if(typeof window.replyToComment === 'function') window.replyToComment(id, author);
+                return;
+            }
+
+            var moreBtn = target.closest('button.btn-more-content');
+            if(moreBtn) {
+                e.preventDefault();
+                if(typeof window.toggleCommentContent === 'function') window.toggleCommentContent(moreBtn);
+                return;
+            }
+
+            var actionBtn = target.closest('button.btn-comment-action');
+            if(actionBtn) {
+                e.preventDefault();
+                var action = actionBtn.getAttribute('data-action') || '';
+                var commentId = actionBtn.getAttribute('data-id') || '';
+                var mode = actionBtn.getAttribute('data-mode') || '';
+
+                if(action === 'report') {
+                    if(typeof window.reportComment === 'function') window.reportComment(commentId);
+                    return;
+                }
+
+                if(action === 'password-check') {
+                    if(typeof window.requestPasswordCheck === 'function') window.requestPasswordCheck(commentId, mode);
+                    return;
+                }
+            }
+        });
+        list._commentActionsHandlerAttached = true;
+    }
+
     list.innerHTML = '';
     
     var countEl = document.getElementById('detail-comments-count');
@@ -1172,7 +1215,15 @@ window.renderTopNotification = async function() {
     
     var container = document.createElement('div');
     container.className = 'flex items-center justify-center text-center';
-    container.innerHTML = '<i class="fa-solid fa-bullhorn mr-2"></i><span>' + noticeText + '</span>';
+
+    var icon = document.createElement('i');
+    icon.className = 'fa-solid fa-bullhorn mr-2';
+
+    var textSpan = document.createElement('span');
+    textSpan.textContent = String(noticeText);
+
+    container.appendChild(icon);
+    container.appendChild(textSpan);
     
     var closeBtn = document.createElement('button');
     closeBtn.className = 'ml-4 opacity-70 hover:opacity-100 transition flex-shrink-0';
