@@ -4,10 +4,50 @@ var pendingTargetId = null;
 
 var isSubmitting = false;
 
+if (!window.__verifiedPwHashCache) window.__verifiedPwHashCache = {};
+
+window.__setVerifiedPwHash = function(actionType, targetId, hashed) {
+    try {
+        const key = `${String(actionType)}:${String(targetId)}`;
+        window.__verifiedPwHashCache[key] = { hash: hashed, ts: Date.now() };
+    } catch (e) {
+        console.error('Failed to set verified pw hash:', e);
+    }
+};
+
+window.__consumeVerifiedPwHash = function(actionType, targetId, maxAgeMs = 5 * 60 * 1000) {
+    try {
+        const key = `${String(actionType)}:${String(targetId)}`;
+        const entry = window.__verifiedPwHashCache[key];
+        if (!entry) return null;
+        delete window.__verifiedPwHashCache[key]; // consume-once
+        if (!entry.ts || (Date.now() - entry.ts) > maxAgeMs) return null;
+        return entry.hash || null;
+    } catch (e) {
+        console.error('Failed to consume verified pw hash:', e);
+        return null;
+    }
+};
+
 if (!window.hasMainJsRun) {
     window.hasMainJsRun = true;
     window.currentEditorMode = 'html';
     window.isWriting = false;
+
+    document.addEventListener('click', function(e) {
+        const link = e.target && e.target.closest ? e.target.closest('a[data-confirm-link]') : null;
+        if (!link) return;
+        const url = (link.dataset && link.dataset.url) ? link.dataset.url : link.getAttribute('href');
+        if (!url) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.confirmLink === 'function') {
+            window.confirmLink(url);
+        } else {
+            window.open(url, '_blank');
+        }
+    });
+
     const BGM_ENABLED_KEY = 'aa_bgm_enabled';
     const BGM_VOLUME_KEY = 'aa_bgm_volume';
     const BGM_OPACITY_KEY = 'aa_bgm_opacity';
@@ -290,8 +330,6 @@ if (!window.hasMainJsRun) {
     const BGM_PROGRESS_INTERVAL_MS = 250;
     const BGM_PROGRESS_INTERVAL_MAX_MS = 5000;
 
-    // Seeking can get stuck forever on streaming sources that don't support random access (HTTP Range).
-    // Keep retries bounded to avoid log spam / busy loops.
     const BGM_SEEK_RETRY_MAX_ATTEMPTS = 30;
     const BGM_SEEK_RETRY_MAX_MS = 4000;
     const BGM_SEEK_USER_RESUME_WINDOW_MS = 2500;
@@ -365,7 +403,6 @@ if (!window.hasMainJsRun) {
 
     const debugLog = (...args) => {
         if (!bgmDebugEnabled()) return;
-        // `console.debug` is often filtered out in DevTools. Use `console.log` for reliability.
         console.log('[BGM]', ...args);
     };
 
@@ -411,9 +448,6 @@ if (!window.hasMainJsRun) {
         const duration = Number.isFinite(bgmAudioEl.duration) ? bgmAudioEl.duration : 0;
         const clampedTarget = Math.max(0, duration > 0 ? Math.min(targetTime, duration) : targetTime);
 
-        // IMPORTANT: Do not trust `duration` alone for streaming sources.
-        // If the server does not support HTTP Range requests, the browser can reject early seeks
-        // (often snapping back to 0). Only seek when the element reports a seekable/buffered range.
         if (timeRangesContain(bgmAudioEl.seekable, clampedTarget)) return true;
         if (timeRangesContain(bgmAudioEl.buffered, clampedTarget)) return true;
 
@@ -467,7 +501,6 @@ if (!window.hasMainJsRun) {
             return;
         }
 
-        // Backoff a little to avoid spamming the media pipeline.
         const delayMs = Math.min(1200, 120 + attempt * 60);
 
         bgmSeekRetryTimer = window.setTimeout(() => {
@@ -535,9 +568,6 @@ if (!window.hasMainJsRun) {
             return;
         }
 
-        // Do NOT clear `bgmPendingSeekTime` until we confirm that the media element
-        // actually moved. Some browsers accept the assignment but immediately snap
-        // back to 0 while `readyState` is still low.
 
         try {
             const method = typeof bgmAudioEl.fastSeek === 'function' ? 'fastSeek' : 'currentTime';
@@ -570,7 +600,6 @@ if (!window.hasMainJsRun) {
                     readyState: bgmAudioEl.readyState,
                     networkState: bgmAudioEl.networkState
                 });
-                // Keep pending seek time and retry via backoff.
                 bgmPendingSeekTime = targetTime;
                 queueBgmSeekRetry();
             } else {
@@ -597,7 +626,6 @@ if (!window.hasMainJsRun) {
         } catch (error) {
             bgmSeekRetryAttempts += 1;
             debugLog('seek attempt failed', error);
-            // Keep pending seek and retry later.
             bgmPendingSeekTime = targetTime;
             queueBgmSeekRetry();
         }
@@ -1417,8 +1445,6 @@ if (!window.hasMainJsRun) {
             if (bgmEnabled) setBgmStatus(getBgmStatusText());
             setBgmPlayPauseUi();
         });
-        // Some browsers may fire `play` before `currentTime` starts advancing.
-        // Ensure the progress UI loop is running once playback actually begins.
         bgmAudioEl.addEventListener('playing', () => {
             debugLog('event: playing', {
                 currentTime: Number.isFinite(bgmAudioEl.currentTime) ? bgmAudioEl.currentTime : null,
@@ -1602,8 +1628,6 @@ if (!window.hasMainJsRun) {
             }
 
             if (bgmAudioEl.paused) {
-                // If a seek was pending (e.g. stalled/streaming track), pressing Play should act as
-                // an escape hatch: cancel the pending seek and just play from the current position.
                 cancelPendingSeek('play pressed', { statusText: null });
 
                 setBgmStatus(BGM_STATUS_STARTING);
@@ -1611,7 +1635,6 @@ if (!window.hasMainJsRun) {
                 await tryStartBgm();
             } else {
                 bgmAudioEl.pause();
-                // User explicitly paused; do not auto-resume after a later seek.
                 bgmPendingSeekWasPlaying = false;
                 bgmPendingSeekResumeDeadline = 0;
                 bgmPendingSeekResumeArmed = false;
@@ -1800,9 +1823,6 @@ if (!window.hasMainJsRun) {
             disarmBgmSeekMoveListeners();
             logSeekSliderState('seek drag end', event);
 
-            // IMPORTANT: Some browsers dispatch pointerup/mouseup before the final change event.
-            // If we force-sync the UI here, we can overwrite the slider's value back to the
-            // currentTime (often ~0) and the subsequent change handler will read 0.
             if (bgmSeekDragEndUiTimer) {
                 window.clearTimeout(bgmSeekDragEndUiTimer);
                 bgmSeekDragEndUiTimer = 0;
@@ -1836,9 +1856,6 @@ if (!window.hasMainJsRun) {
             bgmSeekRetryStartedAt = perfNow;
             bgmPendingSeekStatusShown = false;
 
-            // If the user initiated a seek while the track was already playing, some browsers
-            // can briefly pause the media pipeline while the seek resolves. Allow a short
-            // resume window after the seek sticks.
             bgmPendingSeekWasPlaying = wasPlaying;
             bgmPendingSeekResumeArmed = wasPlaying;
             bgmPendingSeekResumeDeadline = wasPlaying ? perfNow + BGM_SEEK_USER_RESUME_WINDOW_MS : 0;
@@ -1884,23 +1901,16 @@ if (!window.hasMainJsRun) {
             const finalTime = Number.isFinite(nextTime) ? nextTime : fallbackTime;
             if (!Number.isFinite(finalTime)) return;
 
-            // Treat pointer release as the single source of truth for the seek commit.
-            // Some browsers fire a trailing `change` event with a stale/zero value,
-            // which would otherwise overwrite the intended seek.
             const now = window.performance && typeof window.performance.now === 'function'
                 ? window.performance.now()
                 : Date.now();
             bgmSeekIgnoreSliderCommitUntil = now + 200;
 
-            // When the slider's value fails to update (e.g. max was 0 at interaction start),
-            // fall back to pointer position.
             applyBgmSeekToTime(finalTime, { source: 'pointer' });
         };
 
         bgmSeekSlider.addEventListener('pointerdown', beginBgmSeekDrag);
         bgmSeekSlider.addEventListener('pointerup', (event) => {
-            // Commit seek on pointer release as a fallback for cases where the range input
-            // value fails to update (e.g. max=0 during early interaction).
             applyBgmSeekFromPointerCommit(event);
             endBgmSeekDrag(event);
         });
@@ -1922,15 +1932,11 @@ if (!window.hasMainJsRun) {
         });
 
         bgmSeekSlider.addEventListener('change', (event) => {
-            // Do not treat `change` as a seek commit. Pointer release already commits
-            // the intended seek, and `change` can carry a stale/zero value in some browsers.
             logSeekSliderState('seek slider change (ignored for commit)', event);
             endBgmSeekDrag(event);
         });
 
         bgmSeekSlider.addEventListener('blur', (event) => {
-            // Navigation / focus changes can trigger blur. Do not treat blur as a seek commit,
-            // otherwise the slider can snap to 0 during SPA view switches.
             endBgmSeekDrag(event);
         });
 
@@ -1966,12 +1972,8 @@ if (!window.hasMainJsRun) {
 
         window.addEventListener('aa:navigate', (event) => {
             if (!bgmAudioEl) return;
-            // Navigation inside the SPA should not reset BGM state.
-            // Ensure UI reflects the *actual* element state after view transitions.
             debugLog('aa:navigate', event && event.detail ? event.detail : {});
 
-            // If a seek drag was in progress, navigation can steal focus/pointer events.
-            // Reset transient UI state to avoid desync (slider stuck/pending seek).
             bgmSeekDragging = false;
             bgmPendingSeekTime = null;
             stopBgmSeekRetry();
@@ -2283,6 +2285,10 @@ if (!window.hasMainJsRun) {
         }
 
         if(isValid) {
+            if (typeof window.__setVerifiedPwHash === 'function') {
+                window.__setVerifiedPwHash(pendingActionType, pendingTargetId, hashedInput);
+            }
+
             const a = pendingActionType;
             const i = pendingTargetId;
             const t = pendingTarget;
