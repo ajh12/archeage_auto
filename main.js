@@ -2200,7 +2200,7 @@ if (!window.hasMainJsRun) {
             keyword = (input1 ? input1.value.trim() : '') || (input2 ? input2.value.trim() : '');
         }
         
-        if(!keyword || keyword.length < 2) return showAlert("寃?됱뼱??2湲???댁긽 ?낅젰?댁＜?몄슂.");
+        if(!keyword || keyword.length < 2) return showAlert("검색어는 2글자 이상 입력해주세요.");
 
         const mBtn = document.getElementById('btn-search-type-mobile');
         let searchType = 'all';
@@ -2227,9 +2227,9 @@ if (!window.hasMainJsRun) {
             target = currentPost.comments.find(c => c.id == targetId || c.created_at == targetId); 
         }
 
-        if (!target) return showAlert("??ぉ??李얠쓣 ???놁뒿?덈떎.");
+        if (!target) return showAlert("대상을 찾을 수 없습니다.");
         if(isAdmin) { executeAction(actionType, targetId, target); return; }
-        if(target.author === '???' || target.author === 'Admin') return showAlert("????????????? ??????? ????????? ???????");
+        if(target.author === '익명' || target.author === 'Admin') return showAlert("익명/관리자 글은 비밀번호 확인이 필요 없습니다.");
 
         pendingActionType = actionType;
         pendingTargetId = targetId;
@@ -2241,11 +2241,11 @@ if (!window.hasMainJsRun) {
 
     window.confirmPasswordAction = async function() {
         const inputPw = document.getElementById('verificationPw').value.trim();
-        if(!inputPw) return showAlert("鍮꾨?踰덊샇 ?낅젰 ?꾩슂");
+        if(!inputPw) return showAlert("비밀번호 입력 필요");
         if (!pendingTarget) return closePasswordModal();
         
         const dbClient = getDbClient();
-        if (!dbClient) return showAlert("?ㅽ봽?쇱씤 ?곹깭?먯꽌???뺤씤?????놁뒿?덈떎.");
+        if (!dbClient) return showAlert("오프라인 상태에서는 확인할 수 없습니다.");
 
         const hashedInput = await sha256(inputPw);
         
@@ -2260,8 +2260,8 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    if(error.code === '42883') return showAlert("DB ?⑥닔 ?ㅻ쪟: 愿由ъ옄?먭쾶 臾몄쓽?섏꽭??");
-                    else return showAlert("?ㅻ쪟 諛쒖깮: " + error.message);
+                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요");
+                    else return showAlert("오류 발생: " + error.message);
                 }
                 
                 if (data === true) isValid = true;
@@ -2273,15 +2273,15 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                     if(error.code === '42883') return showAlert("DB ?⑥닔 ?ㅻ쪟: 愿由ъ옄?먭쾶 臾몄쓽?섏꽭??");
-                     else return showAlert("?ㅻ쪟 諛쒖깮: " + error.message);
+                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요");
+                     else return showAlert("오류 발생: " + error.message);
                 }
 
                 if (data === true) isValid = true;
             }
         } catch (e) {
             console.error("System error:", e);
-            return showAlert("?쒖뒪???ㅻ쪟 諛쒖깮");
+            return showAlert("시스템 오류 발생");
         }
 
         if(isValid) {
@@ -2306,9 +2306,9 @@ if (!window.hasMainJsRun) {
     window.closeAlert = closeAlert;
 
     function executeAction(type, id, targetObj) {
-        if(type === 'delete_post') showConfirm("??젣?섏떆寃좎뒿?덇퉴?", () => deletePost(id), "??젣", "??젣?섍린");
+        if(type === 'delete_post') showConfirm("삭제하시겠습니까?", () => deletePost(id), "삭제", "삭제하기");
         else if(type === 'edit_post') goEditMode(targetObj);
-        else if(type === 'delete_comment') showConfirm("??젣?섏떆寃좎뒿?덇퉴?", () => deleteComment(id), "??젣", "??젣?섍린");
+        else if(type === 'delete_comment') showConfirm("삭제하시겠습니까?", () => deleteComment(id), "삭제", "삭제하기");
         else if(type === 'edit_comment') loadCommentForEdit(targetObj);
     }
 }
