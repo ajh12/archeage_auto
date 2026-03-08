@@ -393,10 +393,10 @@ if (!window.hasMainJsRun) {
     };
 
     const getBgmStatusText = () => {
-        if (!bgmEnabled) return '꺼짐';
-        if (!bgmAudioEl) return '트랙 로딩 중...';
-        if (bgmAudioEl.volume === 0) return '음소거';
-        return bgmAudioEl.paused ? '일시정지' : '재생 중';
+        if (!bgmEnabled) return 'BGM off';
+        if (!bgmAudioEl) return 'No track loaded.';
+        if (bgmAudioEl.volume === 0) return 'Muted';
+        return bgmAudioEl.paused ? 'Paused' : 'Playing';
     };
 
     const bgmDebugEnabled = () => Boolean(window.__AA_BGM_DEBUG__);
@@ -496,7 +496,7 @@ if (!window.hasMainJsRun) {
 
         if (attempt >= BGM_SEEK_RETRY_MAX_ATTEMPTS || elapsed >= BGM_SEEK_RETRY_MAX_MS) {
             cancelPendingSeek('retry limit exceeded', {
-                statusText: '이 트랙은 아직 해당 구간으로 이동할 수 없습니다.'
+                statusText: '스트리밍/버퍼링 문제로 요청한 위치로 이동할 수 없습니다. 잠시 후 다시 시도해주세요.'
             });
             return;
         }
@@ -527,7 +527,7 @@ if (!window.hasMainJsRun) {
         const elapsed = perfNow - bgmSeekRetryStartedAt;
         if (attempt >= BGM_SEEK_RETRY_MAX_ATTEMPTS || elapsed >= BGM_SEEK_RETRY_MAX_MS) {
             cancelPendingSeek('retry limit exceeded (apply)', {
-                statusText: '이 트랙은 아직 해당 구간으로 이동할 수 없습니다.'
+                statusText: '스트리밍/버퍼링 문제로 요청한 위치로 이동할 수 없습니다. 잠시 후 다시 시도해주세요.'
             });
             return;
         }
@@ -550,7 +550,7 @@ if (!window.hasMainJsRun) {
             bgmSeekRetryAttempts += 1;
 
             if (bgmEnabled && !bgmPendingSeekStatusShown) {
-                setBgmStatus('버퍼링 중…(시킹 대기)');
+                setBgmStatus('버퍼링 중입니다… 잠시만 기다려주세요.');
                 bgmPendingSeekStatusShown = true;
             }
 
@@ -722,7 +722,7 @@ if (!window.hasMainJsRun) {
 
     const setBgmToggleUi = () => {
         if (!bgmToggleBtn) return;
-        bgmToggleBtn.textContent = bgmEnabled ? '켜짐' : '꺼짐';
+        bgmToggleBtn.textContent = bgmEnabled ? 'Turn BGM Off' : 'Turn BGM On';
         bgmToggleBtn.classList.toggle('is-on', bgmEnabled);
     };
 
@@ -734,22 +734,22 @@ if (!window.hasMainJsRun) {
             iconEl.classList.toggle('fa-play', !isPlaying);
             iconEl.classList.toggle('fa-pause', isPlaying);
         }
-        bgmPlayPauseBtn.setAttribute('aria-label', isPlaying ? '일시정지' : '재생');
-        bgmPlayPauseBtn.setAttribute('title', isPlaying ? '일시정지' : '재생');
+        bgmPlayPauseBtn.setAttribute('aria-label', isPlaying ? 'Pause playback' : 'Play audio');
+        bgmPlayPauseBtn.setAttribute('title', isPlaying ? 'Pause' : 'Play');
         bgmPlayPauseBtn.classList.toggle('is-playing', isPlaying);
     };
 
     const setBgmRepeatUi = () => {
         if (!bgmRepeatBtn) return;
-        let textValue = '반복: 끔';
-        let title = '반복 모드: 끔';
+        let textValue = 'Repeat: Off';
+        let title = 'Repeat mode: off';
 
         if (bgmRepeatMode === 'one') {
-            textValue = '반복: 한 곡';
-            title = '반복 모드: 한 곡';
+            textValue = 'Repeat: One';
+            title = 'Repeat mode: one track';
         } else if (bgmRepeatMode === 'all') {
-            textValue = '반복: 전체';
-            title = '반복 모드: 전체';
+            textValue = 'Repeat: All';
+            title = 'Repeat mode: all tracks';
         }
 
         bgmRepeatBtn.textContent = textValue;
@@ -758,6 +758,7 @@ if (!window.hasMainJsRun) {
         bgmRepeatBtn.classList.toggle('is-repeat-one', bgmRepeatMode === 'one');
         bgmRepeatBtn.classList.toggle('is-repeat-all', bgmRepeatMode === 'all');
     };
+
     const setBgmLibraryUi = () => {
         if (bgmLibraryBgmBtn) {
             const isBgm = bgmLibrary === 'bgm';
@@ -1217,10 +1218,10 @@ if (!window.hasMainJsRun) {
         setBgmTrackUi();
 
         if (shouldAutoplay && bgmEnabled) {
-            setBgmStatus('재생 시작 중...');
+            setBgmStatus('트랙 로딩 중…');
             void tryStartBgm();
         } else if (!bgmEnabled) {
-            setBgmStatus('꺼짐');
+            setBgmStatus('BGM off');
         } else {
             setBgmStatus(getBgmStatusText());
         }
@@ -1307,7 +1308,7 @@ if (!window.hasMainJsRun) {
             setBgmPlayPauseUi();
             return true;
         } catch (_error) {
-            setBgmStatus('자동 재생이 차단되었습니다. 화면을 한 번 터치/클릭한 뒤 재생을 눌러주세요.');
+            setBgmStatus('자동 재생이 차단되었습니다. 화면을 한 번 터치/클릭한 뒤 다시 재생해주세요.');
             addBgmUnlockListeners();
             setBgmPlayPauseUi();
             return false;
@@ -1583,7 +1584,7 @@ if (!window.hasMainJsRun) {
             });
             stopBgmProgressRaf();
             stopBgmProgressInterval();
-            setBgmStatus('트랙을 불러오지 못했습니다.');
+            setBgmStatus('오디오 로드 중 오류가 발생했습니다.');
             setBgmPlayPauseUi();
         });
 
@@ -1598,7 +1599,7 @@ if (!window.hasMainJsRun) {
                     setBgmPlayPauseUi();
                     return;
                 }
-                setBgmStatus('재생 시작 중...');
+                setBgmStatus('트랙 로딩 중…');
                 syncBgmTrackBeforePlaybackStart();
                 await tryStartBgm();
             } else {
@@ -1606,7 +1607,7 @@ if (!window.hasMainJsRun) {
                 bgmPendingSeekTime = null;
                 stopBgmSeekRetry();
                 removeBgmUnlockListeners();
-                setBgmStatus('꺼짐');
+                setBgmStatus('BGM off');
             }
             setBgmPlayPauseUi();
         });
@@ -1673,11 +1674,11 @@ if (!window.hasMainJsRun) {
             localStorage.setItem(BGM_VOLUME_KEY, String(volume));
 
             if (!bgmEnabled) {
-                setBgmStatus('꺼짐');
+                setBgmStatus('BGM off');
                 return;
             }
             if (volume === 0) {
-                setBgmStatus('음소거');
+                setBgmStatus('Muted');
                 return;
             }
             setBgmStatus(getBgmStatusText());
@@ -2059,7 +2060,7 @@ if (!window.hasMainJsRun) {
         if(typeof fetchVersion === 'function') {
             fetchVersion().then(v => {
                 const vText = document.getElementById('version-text');
-                if (v && vText) vText.innerText = "최신버전  " + v;
+                if (v && vText) vText.innerText = "최신버전 " + v;
             });
         }
 
@@ -2218,22 +2219,58 @@ if (!window.hasMainJsRun) {
         performSearch(keyword, searchType);
     };
 
-    window.requestPasswordCheck = function(targetId, actionType) {
+    window.requestPasswordCheck = async function(targetId, actionType) {
+        const isPostAction = actionType && actionType.includes('post');
         let target = null;
-        if(actionType.includes('post')) {
+
+        if (isPostAction) {
             target = posts.find(p => p.id == targetId);
         } else {
             const currentPost = posts.find(p => p.id == currentPostId);
-            target = currentPost.comments.find(c => c.id == targetId || c.created_at == targetId); 
+            target = currentPost && Array.isArray(currentPost.comments)
+                ? currentPost.comments.find(c => c.id == targetId || c.created_at == targetId)
+                : null;
         }
 
-        if (!target) return showAlert("대상을 찾을 수 없습니다.");
+        // Fallback: if cache miss, verify existence directly from DB.
+        if (!target) {
+            const dbClient = getDbClient();
+            if (dbClient) {
+                try {
+                    if (isPostAction) {
+                        const { data, error } = await dbClient
+                            .from('posts')
+                            .select('*')
+                            .eq('id', targetId)
+                            .is('deleted_at', null)
+                            .single();
+
+                        if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
+                        if (data) target = data;
+                    } else {
+                        const { data, error } = await dbClient
+                            .from('comments')
+                            .select('*')
+                            .eq('id', targetId)
+                            .is('deleted_at', null)
+                            .single();
+
+                        if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
+                        if (data) target = data;
+                    }
+                } catch (e) {
+                    console.error('Target lookup failed:', e);
+                }
+            }
+        }
+
+        if (!target) return showAlert("\uB300\uC0C1\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
         if(isAdmin) { executeAction(actionType, targetId, target); return; }
-        if(target.author === '익명' || target.author === 'Admin') return showAlert("익명/관리자 글은 비밀번호 확인이 필요 없습니다.");
+        if(target.author === '\uC775\uBA85' || target.author === 'Admin') return showAlert("\uC775\uBA85/\uAD00\uB9AC\uC790 \uAE00\uC740 \uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uD544\uC694 \uC5C6\uC2B5\uB2C8\uB2E4.");
 
         pendingActionType = actionType;
         pendingTargetId = targetId;
-        pendingTarget = target; 
+        pendingTarget = target;
         document.getElementById('verificationPw').value = '';
         document.getElementById('passwordModal').classList.remove('hidden');
         document.getElementById('verificationPw').focus();
@@ -2241,7 +2278,7 @@ if (!window.hasMainJsRun) {
 
     window.confirmPasswordAction = async function() {
         const inputPw = document.getElementById('verificationPw').value.trim();
-        if(!inputPw) return showAlert("비밀번호 입력 필요");
+        if(!inputPw) return showAlert("Password required.");
         if (!pendingTarget) return closePasswordModal();
         
         const dbClient = getDbClient();
@@ -2260,7 +2297,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요");
+                    if(error.code === '42883') return showAlert("DB function error: contact admin.");
                     else return showAlert("오류 발생: " + error.message);
                 }
                 
@@ -2273,7 +2310,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요");
+                     if(error.code === '42883') return showAlert("DB function error: contact admin.");
                      else return showAlert("오류 발생: " + error.message);
                 }
 
@@ -2281,7 +2318,7 @@ if (!window.hasMainJsRun) {
             }
         } catch (e) {
             console.error("System error:", e);
-            return showAlert("시스템 오류 발생");
+            return showAlert("System error occurred.");
         }
 
         if(isValid) {
@@ -2306,9 +2343,9 @@ if (!window.hasMainJsRun) {
     window.closeAlert = closeAlert;
 
     function executeAction(type, id, targetObj) {
-        if(type === 'delete_post') showConfirm("삭제하시겠습니까?", () => deletePost(id), "삭제", "삭제하기");
+        if(type === 'delete_post') showConfirm("Delete this post?", () => deletePost(id), "Delete", "Delete");
         else if(type === 'edit_post') goEditMode(targetObj);
-        else if(type === 'delete_comment') showConfirm("삭제하시겠습니까?", () => deleteComment(id), "삭제", "삭제하기");
+        else if(type === 'delete_comment') showConfirm("Delete this comment?", () => deleteComment(id), "Delete", "Delete");
         else if(type === 'edit_comment') loadCommentForEdit(targetObj);
     }
 }
