@@ -2278,7 +2278,7 @@ if (!window.hasMainJsRun) {
 
     window.confirmPasswordAction = async function() {
         const inputPw = document.getElementById('verificationPw').value.trim();
-        if(!inputPw) return showAlert("Password required.");
+        if(!inputPw) return showAlert("비밀번호를 입력하세요.");
         if (!pendingTarget) return closePasswordModal();
         
         const dbClient = getDbClient();
@@ -2297,7 +2297,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                    if(error.code === '42883') return showAlert("DB function error: contact admin.");
+                    if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
                     else return showAlert("오류 발생: " + error.message);
                 }
                 
@@ -2310,7 +2310,7 @@ if (!window.hasMainJsRun) {
                 
                 if (error) {
                     console.error("Password check error:", error);
-                     if(error.code === '42883') return showAlert("DB function error: contact admin.");
+                     if(error.code === '42883') return showAlert("DB 함수 오류: 관리자에게 문의하세요.");
                      else return showAlert("오류 발생: " + error.message);
                 }
 
@@ -2318,7 +2318,7 @@ if (!window.hasMainJsRun) {
             }
         } catch (e) {
             console.error("System error:", e);
-            return showAlert("System error occurred.");
+            return showAlert("시스템 오류가 발생했습니다.");
         }
 
         if(isValid) {
@@ -2333,7 +2333,7 @@ if (!window.hasMainJsRun) {
             pendingActionType = null;
             setTimeout(() => executeAction(a, i, t), 300);
         } else {
-            showAlert("Verification failed.");
+            showAlert("비밀번호가 일치하지 않습니다.");
             document.getElementById('verificationPw').value = '';
         }
     }
@@ -2343,9 +2343,9 @@ if (!window.hasMainJsRun) {
     window.closeAlert = closeAlert;
 
     function executeAction(type, id, targetObj) {
-        if(type === 'delete_post') showConfirm("Delete this post?", () => deletePost(id), "Delete", "Delete");
+        if(type === 'delete_post') showConfirm("게시글을 삭제하시겠습니까?", () => deletePost(id), "삭제", "삭제");
         else if(type === 'edit_post') goEditMode(targetObj);
-        else if(type === 'delete_comment') showConfirm("Delete this comment?", () => deleteComment(id), "Delete", "Delete");
+        else if(type === 'delete_comment') showConfirm("댓글을 삭제하시겠습니까?", () => deleteComment(id), "삭제", "삭제");
         else if(type === 'edit_comment') loadCommentForEdit(targetObj);
     }
 }
