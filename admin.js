@@ -12,6 +12,29 @@ var pendingCategoryMove = {
     targetType: null
 };
 
+async function confirmAdminDirectWrite(actionLabel) {
+    return new Promise(function(resolve) {
+        var msg =
+            "⚠️ 관리자 직접 DB 쓰기 작업입니다.\n\n" +
+            "이 기능은 브라우저에서 Supabase 테이블에 직접 INSERT/UPDATE/DELETE를 수행합니다.\n" +
+            "RLS(행 수준 보안) 정책이 강제되지 않으면 권한 상승/악용 위험이 있습니다.\n\n" +
+            "계속하려면 다음 문구를 정확히 입력하세요:\nRLS 확인";
+
+        showConfirm(msg, function() {
+            try {
+                var typed = prompt("보안 확인 문구 입력: RLS 확인");
+                if (typed !== "RLS 확인") {
+                    showAlert("취소되었습니다.");
+                    return resolve(false);
+                }
+                resolve(true);
+            } catch (e) {
+                resolve(false);
+            }
+        }, "보안 확인 - " + (actionLabel || "작업"), "계속");
+    });
+}
+
 window.switchAdminTab = function(tabName) {
     var tabs = ['dashboard', 'deleted-posts', 'deleted-comments', 'reported', 'ip-search'];
     tabs.forEach(function(t) {
@@ -181,6 +204,9 @@ async function addBan() {
     if(!ip) return showAlert("IP를 입력하세요.");
     if(!dbClient) return;
 
+    var ok = await confirmAdminDirectWrite("IP 차단 추가");
+    if(!ok) return;
+
     var res = await dbClient.from('banned_ips').insert([{ ip: ip, reason: "관리자 수동 차단" }]);
     if(res.error) showAlert("차단 실패: " + res.error.message);
     else {
@@ -193,6 +219,10 @@ async function addBan() {
 async function removeBan(ip) {
     var dbClient = getDbClient();
     if(!confirm('IP ' + ip + '의 차단을 해제하시겠습니까?')) return;
+
+    var ok = await confirmAdminDirectWrite("IP 차단 해제");
+    if(!ok) return;
+
     var res = await dbClient.from('banned_ips').delete().eq('ip', ip);
     if(res.error) showAlert("해제 실패");
     else {
@@ -248,12 +278,8 @@ function renderDeletedPosts() {
         var delDate = new Date(post.deleted_at);
         var elapsed = now - delDate;
         
-        if (elapsed > thirtyDays) {
-            await dbClient.from('posts').delete().eq('id', post.id);
-            return;
-        }
-
         var remainDays = 30 - Math.floor(elapsed / (24 * 60 * 60 * 1000));
+        if (remainDays < 0) remainDays = 0;
         
         var isReportedMany = (post.reports && post.reports >= 5);
         var cardClass = isReportedMany 
@@ -327,12 +353,8 @@ function renderDeletedComments() {
         var delDate = new Date(cmt.deleted_at);
         var elapsed = now - delDate;
         
-        if (elapsed > thirtyDays) {
-            await dbClient.from('comments').delete().eq('id', cmt.id);
-            return;
-        }
-
         var remainDays = 30 - Math.floor(elapsed / (24 * 60 * 60 * 1000));
+        if (remainDays < 0) remainDays = 0;
         var cleanContent = cmt.content.replace(/<[^>]*>/g, ' ').substring(0, 50);
         var ipDisplay = cmt.ip ? '<span class="text-xs text-red-300 font-bold ml-1">(' + cmt.ip + ')</span>' : '';
 
@@ -364,6 +386,9 @@ function renderDeletedComments() {
 function restorePost(id) {
     var dbClient = getDbClient();
     showConfirm("이 게시글을 복구하시겠습니까?", async function() {
+        var ok = await confirmAdminDirectWrite("게시글 복구");
+        if(!ok) return;
+
         var res = await dbClient.from('posts').update({ deleted_at: null, status: 'restored' }).eq('id', id);
         if(res.error) showAlert("복구 실패: " + res.error.message);
         else {
@@ -376,6 +401,9 @@ function restorePost(id) {
 async function permanentlyDeletePost(id) {
     var dbClient = getDbClient();
     showConfirm("이 게시글을 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", async function() {
+        var ok = await confirmAdminDirectWrite("게시글 영구삭제");
+        if(!ok) return;
+
         var res = await dbClient.from('posts').delete().eq('id', id);
         if(res.error) showAlert("삭제 실패: " + res.error.message);
         else {
@@ -388,6 +416,9 @@ async function permanentlyDeletePost(id) {
 function restoreComment(id) {
     var dbClient = getDbClient();
     showConfirm("이 댓글을 복구하시겠습니까?", async function() {
+        var ok = await confirmAdminDirectWrite("댓글 복구");
+        if(!ok) return;
+
         var res = await dbClient.from('comments').update({ deleted_at: null }).eq('id', id);
         if(res.error) showAlert("복구 실패");
         else {
@@ -400,6 +431,9 @@ function restoreComment(id) {
 async function permanentlyDeleteComment(id) {
     var dbClient = getDbClient();
     showConfirm("이 댓글을 영구적으로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", async function() {
+        var ok = await confirmAdminDirectWrite("댓글 영구삭제");
+        if(!ok) return;
+
         var res = await dbClient.from('comments').delete().eq('id', id);
         if(res.error) showAlert("삭제 실패");
         else {
@@ -535,6 +569,9 @@ async function fetchReportedItems() {
 async function clearReports(type, id) {
     var dbClient = getDbClient();
     showConfirm("신고 횟수를 초기화하시겠습니까?", async function() {
+        var ok = await confirmAdminDirectWrite("신고 초기화");
+        if(!ok) return;
+
         var table = type === 'post' ? 'posts' : 'comments';
         var res = await dbClient.from(table).update({ reports: 0, reported_by: [] }).eq('id', id);
         
@@ -549,6 +586,9 @@ async function clearReports(type, id) {
 async function deletePostByAdmin(id) {
     event.stopPropagation();
     showConfirm("이 게시글을 삭제하시겠습니까? (휴지통으로 이동)", async function() {
+        var ok = await confirmAdminDirectWrite("게시글 삭제(휴지통)");
+        if(!ok) return;
+
         var dbClient = getDbClient();
         var res = await dbClient.from('posts').update({ deleted_at: new Date().toISOString(), status: 'deleted' }).eq('id', id);
         if(res.error) showAlert("삭제 실패: " + res.error.message);
@@ -562,6 +602,9 @@ async function deletePostByAdmin(id) {
 async function deleteCommentByAdmin(id) {
     event.stopPropagation();
     showConfirm("이 댓글을 삭제하시겠습니까? (휴지통으로 이동)", async function() {
+        var ok = await confirmAdminDirectWrite("댓글 삭제(휴지통)");
+        if(!ok) return;
+
         var dbClient = getDbClient();
         var res = await dbClient.from('comments').update({ deleted_at: new Date().toISOString() }).eq('id', id);
         if(res.error) showAlert("삭제 실패: " + res.error.message);
@@ -615,6 +658,9 @@ window.executeCategoryMove = async function() {
     closeMoveCategoryModal();
 
     if(confirm('정말로 카테고리를 이동하시겠습니까?')) {
+        var ok = await confirmAdminDirectWrite("카테고리 이동");
+        if(!ok) return;
+
         var { data: post, error: fetchError } = await dbClient.from('posts').select('content').eq('id', postId).single();
         
         if (fetchError || !post) {
