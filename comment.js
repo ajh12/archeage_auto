@@ -5,7 +5,7 @@ async function submitComment() {
 
     const dbClient = getDbClient();
     let name = document.getElementById('cmtName').value.trim();
-    let contentText = document.getElementById('cmtContent').value; 
+    let contentText = String(document.getElementById('cmtContent').value ?? '');
     let pw = document.getElementById('cmtPw').value.trim();
 
     if(!contentText.trim() && currentCommentImages.length === 0) {
