@@ -7,9 +7,14 @@ function preprocessMarkdown(content) {
     return content.replace(/(\r\n|\n|\r)(={3,})(\s*)$/gm, '\n\n---\n');
 }
 
-function escapeHtml(text) { 
-    if (!text) return text; 
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); 
+function escapeHtml(text) {
+    if (text === null || typeof text === 'undefined') return '';
+    const s = String(text);
+    return s.replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function sanitizeContent(html) { 
