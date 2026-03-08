@@ -25,8 +25,10 @@ function sanitizeContent(html) {
         ], 
         ALLOWED_ATTR: [
             'src', 'style', 'class', 'href', 'target', 'rel', 'align', 'color', 'size', 'face', 'title',
-            'onclick', 'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
-        ] 
+            'frameborder', 'allow', 'allowfullscreen', 'width', 'height',
+            'data-confirm-link', 'data-url'
+        ],
+        FORBID_ATTR: ['onclick']
     }); 
 }
 
@@ -86,13 +88,15 @@ function configureMarked() {
             const isGithub = h.includes('github.com');
             const isCommon = h.endsWith('.com') || h.endsWith('.net') || h.endsWith('.co.kr');
 
-            const titleAttr = ` title="${cleanTitle || cleanHref}"`;
+            const safeHref = escapeHtml(cleanHref);
+            const safeTitle = escapeHtml(cleanTitle || cleanHref);
+            const titleAttr = ` title="${safeTitle}"`;
 
             if (!isYoutube && !isGithub && !isCommon) {
                  return `<span class="text-slate-500 underline decoration-dotted cursor-help"${titleAttr}>${text}</span>`;
             }
             
-            return `<a href="javascript:void(0)" onclick="event.preventDefault(); window.confirmLink('${cleanHref}'); return false;"${titleAttr} class="external-link">${text}</a>`;
+            return `<a href="${safeHref}" data-confirm-link="1" data-url="${safeHref}"${titleAttr} class="external-link">${text}</a>`;
 
         } catch(e) {
             return text;
