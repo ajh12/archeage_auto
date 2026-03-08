@@ -65,7 +65,7 @@ async function submitComment() {
                               .replace(/'/g, "&#039;");
 
     safeText = safeText.replace(/(https?:\/\/[^\s]+)/g, function(url) {
-        return `<a href="javascript:void(0)" onclick="event.preventDefault(); window.confirmLink('${url}'); return false;" class="text-blue-600 hover:underline" title="${url}">${url}</a>`;
+        return `<a href="${url}" data-confirm-link="1" data-url="${url}" class="text-blue-600 hover:underline" title="${url}">${url}</a>`;
     });
 
     let finalContent = safeText.replace(/\n/g, '<br>') + imageHtml + parentTag;
@@ -73,10 +73,31 @@ async function submitComment() {
     if(!isAdmin) saveNickname(name);
 
     if(editingCommentId && dbClient) {
-        const { error } = await dbClient.from('comments').update({ content: finalContent }).eq('id', editingCommentId);
+        let verifiedHash = null;
+        if (!isAdmin) {
+            verifiedHash = (typeof window.__consumeVerifiedPwHash === 'function')
+                ? window.__consumeVerifiedPwHash('edit_comment', editingCommentId)
+                : null;
+
+            if (!verifiedHash) {
+                isSubmitting = false;
+                showAlert('비밀번호 확인이 필요합니다. 다시 확인해주세요.');
+                if (typeof window.requestPasswordCheck === 'function') {
+                    window.requestPasswordCheck(editingCommentId, 'edit_comment');
+                }
+                return;
+            }
+        }
+
+        const { error } = await dbClient.rpc('update_comment_secure', {
+            p_id: editingCommentId,
+            p_content: finalContent,
+            p_input_hash: verifiedHash
+        });
+
         if(error) {
             isSubmitting = false;
-            showAlert("수정 실패");
+            showAlert("수정 실패(보안 정책): 서버 보안 함수(update_comment_secure)가 필요합니다. " + (error.message || ""));
         } else {
             const post = posts.find(p => p.id == currentPostId);
             const cmtIndex = post.comments.findIndex(c => c.id == editingCommentId);
@@ -256,8 +277,23 @@ function loadCommentForEdit(cmt) {
 async function deleteComment(id) {
     const dbClient = getDbClient();
     if(dbClient) {
-        const { error } = await dbClient.from('comments').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-        if(error) showAlert("삭제 실패");
+        let verifiedHash = null;
+        if (!isAdmin) {
+            verifiedHash = (typeof window.__consumeVerifiedPwHash === 'function')
+                ? window.__consumeVerifiedPwHash('delete_comment', id)
+                : null;
+
+            if (!verifiedHash) {
+                showAlert('비밀번호 확인이 필요합니다. 다시 확인해주세요.');
+                if (typeof window.requestPasswordCheck === 'function') {
+                    window.requestPasswordCheck(id, 'delete_comment');
+                }
+                return;
+            }
+        }
+
+        const { error } = await dbClient.rpc('delete_comment_secure', { p_id: id, p_input_hash: verifiedHash });
+        if(error) showAlert("삭제 실패(보안 정책): 서버 보안 함수(delete_comment_secure)가 필요합니다. " + (error.message || ""));
         else {
             showAlert("삭제되었습니다.");
             readPost(currentPostId);
