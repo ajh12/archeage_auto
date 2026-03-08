@@ -233,8 +233,7 @@ async function readPost(id, directData = null) {
             if(!error) {
                 const targetPost = posts.find(p => p.id == id);
                 if (targetPost) {
-                    targetPost.views = (targetPost.views || 0) + 1; 
-                    dbClient.from('posts').update({ views: targetPost.views }).eq('id', id);
+                    targetPost.views = (targetPost.views || 0) + 1;
                 }
                 localStorage.setItem(viewedKey, 'true'); 
             }
@@ -443,41 +442,36 @@ async function submitPost() {
         if (editingPostId) {
             if(!dbClient) return showAlert("오프라인 상태에서는 수정할 수 없습니다.");
 
-            let updateSuccess = false;
-            let errorMsg = "";
+            let verifiedHash = null;
+            if (!isAdmin) {
+                verifiedHash = (typeof window.__consumeVerifiedPwHash === 'function')
+                    ? window.__consumeVerifiedPwHash('edit_post', editingPostId)
+                    : null;
+
+                if (!verifiedHash) {
+                    document.getElementById('global-loader').classList.add('hidden');
+                    showAlert('비밀번호 확인이 필요합니다. 다시 확인해주세요.');
+                    if (typeof window.requestPasswordCheck === 'function') {
+                        window.requestPasswordCheck(editingPostId, 'edit_post');
+                    }
+                    return;
+                }
+            }
 
             const { error: rpcError } = await dbClient.rpc('update_post_secure', {
                 p_id: editingPostId,
                 p_title: postData.title,
                 p_content: postData.content,
                 p_image_url: postData.image,
-                p_is_pinned: isAdmin ? isPinned : false
+                p_is_pinned: isAdmin ? isPinned : false,
+                p_input_hash: verifiedHash
             });
 
-            if (!rpcError) {
-                updateSuccess = true;
-            } else {
-                errorMsg = rpcError.message;
-                console.warn("RPC update failed, trying direct update:", rpcError);
-            }
-            
-            if (!updateSuccess) {
-                const { error: updateError } = await dbClient.from('posts').update({ 
-                    title: postData.title, 
-                    content: postData.content, 
-                    image_url: postData.image, 
-                    is_pinned: isAdmin ? isPinned : false
-                }).eq('id', editingPostId);
-
-                if (!updateError) {
-                    updateSuccess = true;
-                } else {
-                    errorMsg = updateError.message;
-                }
-            }
-
-            if (!updateSuccess) {
-                throw new Error("수정 실패: " + errorMsg);
+            if (rpcError) {
+                throw new Error(
+                    "수정 실패(보안 정책): 서버 보안 함수(update_post_secure)가 필요합니다. " +
+                    (rpcError.message || "")
+                );
             }
 
             showAlert("수정되었습니다.");
@@ -565,9 +559,31 @@ async function submitPost() {
 
 async function deletePost(id) { 
     const dbClient = getDbClient();
-    if(dbClient) { 
-        await dbClient.from('posts').update({ deleted_at: new Date().toISOString(), status: 'deleted' }).eq('id', id);
-        if(!document.getElementById('view-detail').classList.contains('hidden')) fetchPosts(currentBoardType); 
+    if(dbClient) {
+        let verifiedHash = null;
+        if (!isAdmin) {
+            verifiedHash = (typeof window.__consumeVerifiedPwHash === 'function')
+                ? window.__consumeVerifiedPwHash('delete_post', id)
+                : null;
+
+            if (!verifiedHash) {
+                showAlert('비밀번호 확인이 필요합니다. 다시 확인해주세요.');
+                if (typeof window.requestPasswordCheck === 'function') {
+                    window.requestPasswordCheck(id, 'delete_post');
+                }
+                return;
+            }
+        }
+
+        const { error } = await dbClient.rpc('delete_post_secure', { p_id: id, p_input_hash: verifiedHash });
+        if (error) {
+            showAlert(
+                "삭제 실패(보안 정책): 서버 보안 함수(delete_post_secure)가 필요합니다. " +
+                (error.message || "")
+            );
+            return;
+        }
+        if(!document.getElementById('view-detail').classList.contains('hidden')) fetchPosts(currentBoardType);
     } else { 
         posts = posts.filter(p => p.id != id); 
         saveLocalPosts(posts); 
@@ -636,6 +652,8 @@ async function togglePinPost() {
 
 function movePostCategory(newType) {
     if(!newType || !currentPostId) return;
+
+    if(!isAdmin) return showAlert("접근 권한이 없습니다.");
     
     const catName = { 'notice': '공지사항', 'free': '자유대화방', 'error': '오류해결소' }[newType];
     
