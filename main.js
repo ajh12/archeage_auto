@@ -2105,13 +2105,23 @@ if (!window.hasMainJsRun) {
 
         if(typeof loadLocalPostsData === 'function') loadLocalPostsData(); 
         
-        const rawHash = window.location.hash;
-        const initialHash = rawHash.startsWith('#') ? decodeURIComponent(rawHash.substring(1)) : '';
-        const hashParts = initialHash.split('/');
-        const pageCode = hashParts[0];
-        const paramId = hashParts[1];
+        let parsedHash = null;
+        if (typeof window.parseAaHashRoute === 'function') {
+            parsedHash = window.parseAaHashRoute(window.location.hash);
+        } else {
+            const rawHash = window.location.hash;
+            const initialHash = rawHash.startsWith('#') ? decodeURIComponent(rawHash.substring(1)) : '';
+            const hashParts = initialHash.split('/');
+            const pageCode = hashParts[0];
+            const paramId = hashParts[1];
+            parsedHash = {
+                realPage: (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home',
+                paramId: paramId
+            };
+        }
 
-        const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home'; 
+        const realPage = parsedHash.realPage || 'home';
+        const paramId = parsedHash.paramId;
         
         if (realPage === 'write') {
             window.router('write', false);
