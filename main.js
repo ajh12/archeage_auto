@@ -335,6 +335,29 @@ if (!window.hasMainJsRun) {
     const BGM_SEEK_USER_RESUME_WINDOW_MS = 2500;
 
     const BGM_STATUS_STARTING = '\uC7AC\uC0DD \uC2DC\uC791...';
+    const BGM_UI_TEXT = Object.freeze({
+        toggleOn: '\uCF1C\uC9D0',
+        toggleOff: '\uAEBC\uC9D0',
+        statusOff: '\uAEBC\uC9D0',
+        statusNoTrack: '\uD2B8\uB799 \uC5C6\uC74C',
+        statusMuted: '\uC74C\uC18C\uAC70',
+        statusPaused: '\uC77C\uC2DC\uC815\uC9C0',
+        statusPlaying: '\uC7AC\uC0DD \uC911',
+        play: '\uC2DC\uC791',
+        pause: '\uC77C\uC2DC\uC815\uC9C0',
+        repeatOffText: '\uBC18\uBCF5: \uAEBC\uC9D0',
+        repeatOneText: '\uBC18\uBCF5: \uD55C \uACE1',
+        repeatAllText: '\uBC18\uBCF5: \uC804\uCCB4',
+        repeatOffTitle: '\uBC18\uBCF5 \uBAA8\uB4DC: \uAEBC\uC9D0',
+        repeatOneTitle: '\uBC18\uBCF5 \uBAA8\uB4DC: \uD55C \uACE1',
+        repeatAllTitle: '\uBC18\uBCF5 \uBAA8\uB4DC: \uC804\uCCB4',
+        openMiniPlayer: '\uBBF8\uB2C8 \uD50C\uB808\uC774\uC5B4 \uC5F4\uAE30',
+        expandPlayer: '\uD50C\uB808\uC774\uC5B4 \uD3BC\uCE58\uAE30',
+        expand: '\uD3BC\uCE58\uAE30',
+        minimizeToHandle: '\uD578\uB4E4\uB85C \uCD5C\uC18C\uD654',
+        collapsePlayer: '\uD50C\uB808\uC774\uC5B4 \uC811\uAE30',
+        collapse: '\uC811\uAE30'
+    });
     const bgmCoverCacheByLibrary = {
         bgm: new Map(),
         ost: new Map()
@@ -393,10 +416,10 @@ if (!window.hasMainJsRun) {
     };
 
     const getBgmStatusText = () => {
-        if (!bgmEnabled) return 'BGM off';
-        if (!bgmAudioEl) return 'No track loaded.';
-        if (bgmAudioEl.volume === 0) return 'Muted';
-        return bgmAudioEl.paused ? 'Paused' : 'Playing';
+        if (!bgmEnabled) return BGM_UI_TEXT.statusOff;
+        if (!bgmAudioEl) return BGM_UI_TEXT.statusNoTrack;
+        if (bgmAudioEl.volume === 0) return BGM_UI_TEXT.statusMuted;
+        return bgmAudioEl.paused ? BGM_UI_TEXT.statusPaused : BGM_UI_TEXT.statusPlaying;
     };
 
     const bgmDebugEnabled = () => Boolean(window.__AA_BGM_DEBUG__);
@@ -722,7 +745,7 @@ if (!window.hasMainJsRun) {
 
     const setBgmToggleUi = () => {
         if (!bgmToggleBtn) return;
-        bgmToggleBtn.textContent = bgmEnabled ? 'Turn BGM Off' : 'Turn BGM On';
+        bgmToggleBtn.textContent = bgmEnabled ? BGM_UI_TEXT.toggleOn : BGM_UI_TEXT.toggleOff;
         bgmToggleBtn.classList.toggle('is-on', bgmEnabled);
     };
 
@@ -734,22 +757,22 @@ if (!window.hasMainJsRun) {
             iconEl.classList.toggle('fa-play', !isPlaying);
             iconEl.classList.toggle('fa-pause', isPlaying);
         }
-        bgmPlayPauseBtn.setAttribute('aria-label', isPlaying ? 'Pause playback' : 'Play audio');
-        bgmPlayPauseBtn.setAttribute('title', isPlaying ? 'Pause' : 'Play');
+        bgmPlayPauseBtn.setAttribute('aria-label', isPlaying ? BGM_UI_TEXT.pause : BGM_UI_TEXT.play);
+        bgmPlayPauseBtn.setAttribute('title', isPlaying ? BGM_UI_TEXT.pause : BGM_UI_TEXT.play);
         bgmPlayPauseBtn.classList.toggle('is-playing', isPlaying);
     };
 
     const setBgmRepeatUi = () => {
         if (!bgmRepeatBtn) return;
-        let textValue = 'Repeat: Off';
-        let title = 'Repeat mode: off';
+        let textValue = BGM_UI_TEXT.repeatOffText;
+        let title = BGM_UI_TEXT.repeatOffTitle;
 
         if (bgmRepeatMode === 'one') {
-            textValue = 'Repeat: One';
-            title = 'Repeat mode: one track';
+            textValue = BGM_UI_TEXT.repeatOneText;
+            title = BGM_UI_TEXT.repeatOneTitle;
         } else if (bgmRepeatMode === 'all') {
-            textValue = 'Repeat: All';
-            title = 'Repeat mode: all tracks';
+            textValue = BGM_UI_TEXT.repeatAllText;
+            title = BGM_UI_TEXT.repeatAllTitle;
         }
 
         bgmRepeatBtn.textContent = textValue;
@@ -783,8 +806,8 @@ if (!window.hasMainJsRun) {
 
         if (isMinimized) {
             bgmCollapseBtn.setAttribute('aria-expanded', 'false');
-            bgmCollapseBtn.setAttribute('aria-label', isMobile ? 'Open mini player' : 'Expand player');
-            bgmCollapseBtn.setAttribute('title', isMobile ? 'Open mini player' : 'Expand');
+            bgmCollapseBtn.setAttribute('aria-label', isMobile ? BGM_UI_TEXT.openMiniPlayer : BGM_UI_TEXT.expandPlayer);
+            bgmCollapseBtn.setAttribute('title', isMobile ? BGM_UI_TEXT.openMiniPlayer : BGM_UI_TEXT.expand);
             const minimizedIconEl = bgmCollapseBtn.querySelector('i');
             if (minimizedIconEl) {
                 minimizedIconEl.classList.toggle('fa-angles-left', true);
@@ -796,8 +819,8 @@ if (!window.hasMainJsRun) {
 
         if (isMobile) {
             bgmCollapseBtn.setAttribute('aria-expanded', 'false');
-            bgmCollapseBtn.setAttribute('aria-label', 'Minimize to handle');
-            bgmCollapseBtn.setAttribute('title', 'Minimize to handle');
+            bgmCollapseBtn.setAttribute('aria-label', BGM_UI_TEXT.minimizeToHandle);
+            bgmCollapseBtn.setAttribute('title', BGM_UI_TEXT.minimizeToHandle);
             const mobileIconEl = bgmCollapseBtn.querySelector('i');
             if (mobileIconEl) {
                 mobileIconEl.classList.toggle('fa-angles-left', false);
@@ -809,12 +832,12 @@ if (!window.hasMainJsRun) {
 
         if (bgmCollapsed) {
             bgmCollapseBtn.setAttribute('aria-expanded', 'false');
-            bgmCollapseBtn.setAttribute('aria-label', 'Minimize to handle');
-            bgmCollapseBtn.setAttribute('title', 'Minimize to handle');
+            bgmCollapseBtn.setAttribute('aria-label', BGM_UI_TEXT.minimizeToHandle);
+            bgmCollapseBtn.setAttribute('title', BGM_UI_TEXT.minimizeToHandle);
         } else {
             bgmCollapseBtn.setAttribute('aria-expanded', 'true');
-            bgmCollapseBtn.setAttribute('aria-label', 'Collapse player');
-            bgmCollapseBtn.setAttribute('title', 'Collapse');
+            bgmCollapseBtn.setAttribute('aria-label', BGM_UI_TEXT.collapsePlayer);
+            bgmCollapseBtn.setAttribute('title', BGM_UI_TEXT.collapse);
         }
         const iconEl = bgmCollapseBtn.querySelector('i');
         if (iconEl) {
@@ -1221,7 +1244,7 @@ if (!window.hasMainJsRun) {
             setBgmStatus('트랙 로딩 중…');
             void tryStartBgm();
         } else if (!bgmEnabled) {
-            setBgmStatus('BGM off');
+            setBgmStatus(BGM_UI_TEXT.statusOff);
         } else {
             setBgmStatus(getBgmStatusText());
         }
@@ -1607,7 +1630,7 @@ if (!window.hasMainJsRun) {
                 bgmPendingSeekTime = null;
                 stopBgmSeekRetry();
                 removeBgmUnlockListeners();
-                setBgmStatus('BGM off');
+                setBgmStatus(BGM_UI_TEXT.statusOff);
             }
             setBgmPlayPauseUi();
         });
@@ -1674,11 +1697,11 @@ if (!window.hasMainJsRun) {
             localStorage.setItem(BGM_VOLUME_KEY, String(volume));
 
             if (!bgmEnabled) {
-                setBgmStatus('BGM off');
+                setBgmStatus(BGM_UI_TEXT.statusOff);
                 return;
             }
             if (volume === 0) {
-                setBgmStatus('Muted');
+                setBgmStatus(BGM_UI_TEXT.statusMuted);
                 return;
             }
             setBgmStatus(getBgmStatusText());
