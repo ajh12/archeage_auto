@@ -1,4 +1,64 @@
 
+async function fetchFreshCommentsForPost(postId) {
+    const dbClient = getDbClient();
+    if (!dbClient) {
+        console.warn('[comment-edit] DB client unavailable while refreshing comments', { postId });
+        return null;
+    }
+
+    try {
+        const { data, error } = await dbClient
+            .from('comments')
+            .select('*')
+            .eq('post_id', postId)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.warn('[comment-edit] Failed to refresh comments from DB', {
+                postId,
+                error: error.message || error
+            });
+            return null;
+        }
+
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.warn('[comment-edit] Exception while refreshing comments from DB', { postId, error: e });
+        return null;
+    }
+}
+
+function syncPostCommentsCache(postId, comments) {
+    if (!Array.isArray(comments) || !Array.isArray(posts)) return false;
+
+    const post = posts.find(p => String(p.id) === String(postId));
+    if (!post) {
+        console.warn('[comment-edit] Post not found in local cache while syncing comments', { postId });
+        return false;
+    }
+
+    post.comments = comments.map(c => ({ ...c }));
+    return true;
+}
+
+function persistPostsCache() {
+    if (!Array.isArray(posts) || typeof saveLocalPosts !== 'function') return false;
+    try {
+        saveLocalPosts(posts);
+        return true;
+    } catch (e) {
+        console.warn('[comment-edit] Failed to persist posts cache', e);
+        return false;
+    }
+}
+
+function renderFreshComments(comments) {
+    if (!Array.isArray(comments) || typeof renderComments !== 'function') return false;
+    renderComments(comments, 'comment-list', isAdmin);
+    return true;
+}
+
 async function submitComment() {
     if(isSubmitting) return; 
     isSubmitting = true;
@@ -89,6 +149,9 @@ async function submitComment() {
             }
         }
 
+        const editTargetId = editingCommentId;
+        console.warn('[comment-edit] Updating comment', { commentId: editTargetId, postId: currentPostId });
+
         const { error } = await dbClient.rpc('update_comment_secure', {
             p_id: editingCommentId,
             p_content: finalContent,
@@ -99,11 +162,49 @@ async function submitComment() {
             isSubmitting = false;
             showAlert("수정 실패(보안 정책): 서버 보안 함수(update_comment_secure)가 필요합니다. " + (error.message || ""));
         } else {
-            const post = posts.find(p => p.id == currentPostId);
-            const cmtIndex = post.comments.findIndex(c => c.id == editingCommentId);
-            if(cmtIndex !== -1) post.comments[cmtIndex].content = finalContent;
-            renderComments(post.comments, 'comment-list', isAdmin);
+            let renderedFromFreshComments = false;
+            const freshComments = await fetchFreshCommentsForPost(currentPostId);
+            if (Array.isArray(freshComments)) {
+                const verifiedComment = freshComments.find(c => String(c.id) === String(editTargetId));
+                if (!verifiedComment) {
+                    console.warn('[comment-edit] Updated comment missing from DB refresh', {
+                        commentId: editTargetId,
+                        postId: currentPostId
+                    });
+                } else {
+                    console.warn('[comment-edit] DB refresh verified updated comment', {
+                        commentId: editTargetId,
+                        postId: currentPostId,
+                        updatedAt: verifiedComment.updated_at || null
+                    });
+                }
+
+                const cacheSynced = syncPostCommentsCache(currentPostId, freshComments);
+                if (cacheSynced) {
+                    persistPostsCache();
+                } else {
+                    console.warn('[comment-edit] Fresh comments rendered but posts cache sync failed', {
+                        postId: currentPostId
+                    });
+                }
+
+                renderedFromFreshComments = renderFreshComments(freshComments);
+            } else {
+                console.warn('[comment-edit] Could not refresh comments directly after update, falling back to readPost', {
+                    commentId: editTargetId,
+                    postId: currentPostId
+                });
+            }
+
+            if (!renderedFromFreshComments) {
+                try {
+                    await readPost(currentPostId);
+                } catch (e) {
+                    console.warn('readPost after edit failed:', e);
+                }
+            }
             cancelCommentEdit();
+            showAlert("수정되었습니다.");
             isSubmitting = false;
         }
         return;
