@@ -3,14 +3,28 @@ function getPageFromCode(code) {
 }
 
 function preprocessMarkdown(content) {
-    if (!content) return "";
-    return content.replace(/(\r\n|\n|\r)(={3,})(\s*)$/gm, '\n\n---\n');
+    if (content === null || content === undefined) return "";
+    var safeContent = '';
+    try {
+        safeContent = typeof content === 'string' ? content : String(content);
+    } catch (e) {
+        return "";
+    }
+    if (!safeContent) return "";
+    return safeContent.replace(/(\r\n|\n|\r)(={3,})(\s*)$/gm, '\n\n---\n');
 }
 
 function escapeHtml(text) {
-    if (text === null || typeof text === 'undefined') return '';
-    const s = String(text);
-    return s.replace(/&/g, "&amp;")
+    if (text === null || text === undefined) return '';
+    var s = '';
+    try {
+        s = typeof text === 'string' ? text : String(text);
+    } catch (e) {
+        return '';
+    }
+    if (!s) return '';
+    return s
+        .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
@@ -18,7 +32,18 @@ function escapeHtml(text) {
 }
 
 function sanitizeContent(html) { 
-    return DOMPurify.sanitize(html, { 
+    if (html === null || html === undefined) return '';
+    var safeHtml = '';
+    try {
+        safeHtml = typeof html === 'string' ? html : String(html);
+    } catch (e) {
+        return '';
+    }
+    if (typeof DOMPurify === 'undefined' || !DOMPurify || typeof DOMPurify.sanitize !== 'function') {
+        return safeHtml;
+    }
+    try {
+        return DOMPurify.sanitize(safeHtml, { 
         ALLOWED_TAGS: [
             'b', 'i', 'u', 'em', 'strong', 'a', 
             'ul', 'li', 'ol', 'p', 'br', 'img', 'font',
@@ -30,11 +55,12 @@ function sanitizeContent(html) {
         ], 
         ALLOWED_ATTR: [
             'src', 'style', 'class', 'href', 'target', 'rel', 'align', 'color', 'size', 'face', 'title',
-            'frameborder', 'allow', 'allowfullscreen', 'width', 'height',
-            'data-confirm-link', 'data-url'
-        ],
-        FORBID_ATTR: ['onclick']
-    }); 
+            'onclick', 'frameborder', 'allow', 'allowfullscreen', 'width', 'height'
+        ] 
+        });
+    } catch (e) {
+        return safeHtml;
+    }
 }
 
 function saveLocalPosts(data) { localStorage.setItem('aa_posts', JSON.stringify(data)); }
@@ -93,15 +119,13 @@ function configureMarked() {
             const isGithub = h.includes('github.com');
             const isCommon = h.endsWith('.com') || h.endsWith('.net') || h.endsWith('.co.kr');
 
-            const safeHref = escapeHtml(cleanHref);
-            const safeTitle = escapeHtml(cleanTitle || cleanHref);
-            const titleAttr = ` title="${safeTitle}"`;
+            const titleAttr = ` title="${cleanTitle || cleanHref}"`;
 
             if (!isYoutube && !isGithub && !isCommon) {
                  return `<span class="text-slate-500 underline decoration-dotted cursor-help"${titleAttr}>${text}</span>`;
             }
             
-            return `<a href="${safeHref}" data-confirm-link="1" data-url="${safeHref}"${titleAttr} class="external-link">${text}</a>`;
+            return `<a href="javascript:void(0)" onclick="event.preventDefault(); window.confirmLink('${cleanHref}'); return false;"${titleAttr} class="external-link">${text}</a>`;
 
         } catch(e) {
             return text;
