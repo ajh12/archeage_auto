@@ -174,7 +174,15 @@ async function fetchPosts(type, page = 1) {
     const writeBtn = document.getElementById('btn-write-board');
     if(writeBtn) writeBtn.classList.toggle('hidden', currentBoardType === 'notice' && !isAdmin);
     
-    const keyword = document.getElementById('boardSearchInput').value.trim();
+    const boardInput = document.getElementById('boardSearchInput');
+    const keyword = boardInput ? boardInput.value.trim() : '';
+
+    if (typeof window.storeBoardRouteState === 'function') {
+        window.storeBoardRouteState(type, page, keyword);
+    }
+    if (typeof window.syncBoardRouteState === 'function') {
+        window.syncBoardRouteState(type, page, keyword);
+    }
     
     let query = dbClient.from('posts').select('*, comments(*)', { count: 'exact' }).eq('type', type).is('deleted_at', null).order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
 
