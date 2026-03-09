@@ -1,5 +1,139 @@
 
 const uiRouter = (typeof window.uiRouter === 'function') ? window.uiRouter : null;
+const BOARD_ROUTE_PAGES = ['notice', 'free', 'list', 'error', 'test'];
+
+const isBoardRoutePage = (page) => BOARD_ROUTE_PAGES.includes(page);
+const boardTypeFromRoute = (page) => page === 'list' ? 'error' : page;
+const routeFromBoardType = (type) => type === 'error' ? 'list' : type;
+const normalizeBoardKeyword = (value) => (typeof value === 'string' ? value.trim() : '');
+const normalizeBoardPage = (value, fallback = 1) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+if (!window.boardRouteStateByType || typeof window.boardRouteStateByType !== 'object') {
+    window.boardRouteStateByType = {};
+}
+
+const getBoardRouteState = (boardType) => {
+    const key = boardTypeFromRoute(boardType);
+    const raw = window.boardRouteStateByType[key] || {};
+    return {
+        page: normalizeBoardPage(raw.page, 1),
+        keyword: normalizeBoardKeyword(raw.keyword)
+    };
+};
+
+const setBoardRouteState = (boardType, page, keyword) => {
+    const key = boardTypeFromRoute(boardType);
+    window.boardRouteStateByType[key] = {
+        page: normalizeBoardPage(page, 1),
+        keyword: normalizeBoardKeyword(keyword)
+    };
+    return window.boardRouteStateByType[key];
+};
+
+const parseHashRoute = (rawHash = window.location.hash) => {
+    const hashValue = (typeof rawHash === 'string') ? rawHash : '';
+    const currentHash = hashValue.startsWith('#') ? hashValue.substring(1) : hashValue;
+    const querySplitIndex = currentHash.indexOf('?');
+    const routePath = querySplitIndex >= 0 ? currentHash.substring(0, querySplitIndex) : currentHash;
+    const queryText = querySplitIndex >= 0 ? currentHash.substring(querySplitIndex + 1) : '';
+
+    let decodedRoutePath = routePath;
+    try {
+        decodedRoutePath = decodeURIComponent(routePath);
+    } catch (e) {
+        // ignore decode failure and keep raw path
+    }
+
+    const hashParts = decodedRoutePath.split('/');
+    const pageCode = hashParts[0];
+    const paramId = hashParts.length > 1 ? hashParts.slice(1).join('/') : '';
+    const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home';
+
+    return {
+        pageCode,
+        paramId,
+        realPage: realPage || 'home',
+        params: new URLSearchParams(queryText)
+    };
+};
+
+const buildBoardHash = (routePage, page, keyword) => {
+    const safePage = normalizeBoardPage(page, 1);
+    const safeKeyword = normalizeBoardKeyword(keyword);
+    const params = new URLSearchParams();
+    params.set('p', String(safePage));
+    if (safeKeyword) params.set('q', safeKeyword);
+    const code = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP[routePage]) ? ROUTE_MAP[routePage] : routePage;
+    return `#${code}?${params.toString()}`;
+};
+
+const resolveBoardNavigationState = (routePage) => {
+    const boardType = boardTypeFromRoute(routePage);
+    const storedState = getBoardRouteState(boardType);
+    const parsedHash = parseHashRoute(window.location.hash);
+
+    const hashMatchesBoard = isBoardRoutePage(parsedHash.realPage) && boardTypeFromRoute(parsedHash.realPage) === boardType;
+    const statePage = history.state && typeof history.state.page === 'string' ? history.state.page : '';
+    const stateMatchesBoard = isBoardRoutePage(statePage) && boardTypeFromRoute(statePage) === boardType;
+
+    let page = storedState.page;
+    let keyword = storedState.keyword;
+
+    if (stateMatchesBoard) {
+        page = normalizeBoardPage(history.state.boardPage, page);
+        keyword = normalizeBoardKeyword(history.state.boardKeyword || keyword);
+    }
+
+    if (hashMatchesBoard) {
+        page = normalizeBoardPage(parsedHash.params.get('p'), page);
+        const keywordFromHash = normalizeBoardKeyword(parsedHash.params.get('q'));
+        keyword = keywordFromHash || keyword;
+    }
+
+    const state = setBoardRouteState(boardType, page, keyword);
+    return {
+        boardType,
+        routePage: routeFromBoardType(boardType),
+        page: state.page,
+        keyword: state.keyword
+    };
+};
+
+window.parseAaHashRoute = parseHashRoute;
+window.storeBoardRouteState = (boardType, page, keyword) => setBoardRouteState(boardType, page, keyword);
+window.syncBoardRouteState = function(boardType, page, keyword) {
+    const normalizedBoardType = boardTypeFromRoute(boardType);
+    const routePage = routeFromBoardType(normalizedBoardType);
+    const safePage = normalizeBoardPage(page, 1);
+    const safeKeyword = normalizeBoardKeyword(keyword);
+    setBoardRouteState(normalizedBoardType, safePage, safeKeyword);
+
+    const currentHashState = parseHashRoute(window.location.hash);
+    if (!isBoardRoutePage(currentHashState.realPage)) return;
+    if (boardTypeFromRoute(currentHashState.realPage) !== normalizedBoardType) return;
+
+    const nextHash = buildBoardHash(routePage, safePage, safeKeyword);
+    const nextState = Object.assign({}, history.state || {}, {
+        page: routePage,
+        boardType: normalizedBoardType,
+        boardPage: safePage,
+        boardKeyword: safeKeyword
+    });
+
+    const currentState = history.state || {};
+    const isUnchanged = window.location.hash === nextHash &&
+        currentState.page === nextState.page &&
+        currentState.boardType === nextState.boardType &&
+        currentState.boardPage === nextState.boardPage &&
+        (currentState.boardKeyword || '') === nextState.boardKeyword;
+
+    if (!isUnchanged) {
+        history.replaceState(nextState, null, nextHash);
+    }
+};
 
 window.addEventListener('popstate', (event) => {
     if (window.isWriting) {
@@ -17,13 +151,9 @@ window.addEventListener('popstate', (event) => {
         return;
     }
 
-    const rawHash = window.location.hash;
-    const currentHash = rawHash.startsWith('#') ? decodeURIComponent(rawHash.substring(1)) : '';
-    const hashParts = currentHash.split('/');
-    const pageCode = hashParts[0];
-    const paramId = hashParts[1];
-    
-    const realPage = (typeof getPageFromCode === 'function') ? getPageFromCode(pageCode) : 'home';
+    const parsedHash = parseHashRoute(window.location.hash);
+    const realPage = parsedHash.realPage;
+    const paramId = parsedHash.paramId;
 
     if (realPage === 'detail' && paramId) {
         readPost(paramId);
@@ -40,10 +170,21 @@ window.router = function(page, pushHistory = true) {
     } catch (e) {
         // ignore
     }
+    const boardNavState = isBoardRoutePage(page) ? resolveBoardNavigationState(page) : null;
+
     if(pushHistory) {
-        const code = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP[page]) ? ROUTE_MAP[page] : page;
         if (page !== 'detail') {
-            history.pushState({ page }, null, page === 'home' ? ' ' : `#${code}`);
+            if (boardNavState) {
+                history.pushState({
+                    page: boardNavState.routePage,
+                    boardType: boardNavState.boardType,
+                    boardPage: boardNavState.page,
+                    boardKeyword: boardNavState.keyword
+                }, null, buildBoardHash(boardNavState.routePage, boardNavState.page, boardNavState.keyword));
+            } else {
+                const code = (typeof ROUTE_MAP !== 'undefined' && ROUTE_MAP[page]) ? ROUTE_MAP[page] : page;
+                history.pushState({ page }, null, page === 'home' ? ' ' : `#${code}`);
+            }
         }
     }
     
@@ -63,11 +204,10 @@ window.router = function(page, pushHistory = true) {
         switchAdminTab(currentAdminTab);
     }
     
-    if(['notice', 'free', 'list', 'error', 'test'].includes(page)) {
+    if (boardNavState) {
         const boardInput = document.getElementById('boardSearchInput');
-        if(boardInput) boardInput.value = '';
-
-        fetchPosts(page === 'list' ? 'error' : page, 1);
+        if(boardInput) boardInput.value = boardNavState.keyword;
+        fetchPosts(boardNavState.boardType, boardNavState.page);
     }
 };
 
