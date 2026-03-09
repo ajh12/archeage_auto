@@ -2221,11 +2221,28 @@ if (!window.hasMainJsRun) {
 
     window.requestPasswordCheck = async function(targetId, actionType) {
         const isPostAction = actionType && actionType.includes('post');
+        const dbClient = getDbClient();
         let target = null;
 
         if (isPostAction) {
             target = posts.find(p => p.id == targetId);
-        } else {
+        } else if (dbClient) {
+            try {
+                const { data, error } = await dbClient
+                    .from('comments')
+                    .select('*')
+                    .eq('id', targetId)
+                    .is('deleted_at', null)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
+                if (data) target = data;
+            } catch (e) {
+                console.error('Target lookup failed:', e);
+            }
+        }
+
+        if (!target && !isPostAction) {
             const currentPost = posts.find(p => p.id == currentPostId);
             target = currentPost && Array.isArray(currentPost.comments)
                 ? currentPost.comments.find(c => c.id == targetId || c.created_at == targetId)
@@ -2233,38 +2250,49 @@ if (!window.hasMainJsRun) {
         }
 
         // Fallback: if cache miss, verify existence directly from DB.
-        if (!target) {
-            const dbClient = getDbClient();
-            if (dbClient) {
-                try {
-                    if (isPostAction) {
-                        const { data, error } = await dbClient
-                            .from('posts')
-                            .select('*')
-                            .eq('id', targetId)
-                            .is('deleted_at', null)
-                            .single();
+        if (!target && dbClient) {
+            try {
+                if (isPostAction) {
+                    const { data, error } = await dbClient
+                        .from('posts')
+                        .select('*')
+                        .eq('id', targetId)
+                        .is('deleted_at', null)
+                        .single();
 
-                        if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
-                        if (data) target = data;
-                    } else {
-                        const { data, error } = await dbClient
-                            .from('comments')
-                            .select('*')
-                            .eq('id', targetId)
-                            .is('deleted_at', null)
-                            .single();
+                    if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
+                    if (data) target = data;
+                } else {
+                    const { data, error } = await dbClient
+                        .from('comments')
+                        .select('*')
+                        .eq('id', targetId)
+                        .is('deleted_at', null)
+                        .single();
 
-                        if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
-                        if (data) target = data;
-                    }
-                } catch (e) {
-                    console.error('Target lookup failed:', e);
+                    if (error && error.code !== 'PGRST116') console.error('Target lookup error:', error);
+                    if (data) target = data;
                 }
+            } catch (e) {
+                console.error('Target lookup failed:', e);
             }
         }
 
         if (!target) return showAlert("\uB300\uC0C1\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.");
+
+        if (!isPostAction) {
+            const currentPost = posts.find(p => p.id == currentPostId);
+            if (currentPost) {
+                if (!Array.isArray(currentPost.comments)) currentPost.comments = [];
+                const targetIndex = currentPost.comments.findIndex(c => String(c.id) === String(target.id));
+                if (targetIndex === -1) currentPost.comments.push({ ...target });
+                else currentPost.comments[targetIndex] = { ...currentPost.comments[targetIndex], ...target };
+                if (typeof saveLocalPosts === 'function') {
+                    try { saveLocalPosts(posts); } catch (e) {}
+                }
+            }
+        }
+
         if(isAdmin) { executeAction(actionType, targetId, target); return; }
         if(target.author === '\uC775\uBA85' || target.author === 'Admin') return showAlert("\uC775\uBA85/\uAD00\uB9AC\uC790 \uAE00\uC740 \uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uD544\uC694 \uC5C6\uC2B5\uB2C8\uB2E4.");
 
