@@ -685,31 +685,6 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
         container.className = "flex flex-col gap-3";
     }
 
-    // Avoid inline onclick handlers (CSP may block 'unsafe-inline').
-    if (!container._postNavHandlerAttached) {
-        container.addEventListener('click', function(e) {
-            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
-            if (!card) return;
-            var postId = card.getAttribute('data-post-id');
-            if (!postId) return;
-            if (typeof window.readPost === 'function') {
-                window.readPost(String(postId));
-            }
-        });
-        container.addEventListener('keydown', function(e) {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
-            if (!card) return;
-            e.preventDefault();
-            var postId = card.getAttribute('data-post-id');
-            if (!postId) return;
-            if (typeof window.readPost === 'function') {
-                window.readPost(String(postId));
-            }
-        });
-        container._postNavHandlerAttached = true;
-    }
-
     postsData.forEach(function(post) {
         var safeTitle = typeof escapeHtml === 'function' ? escapeHtml(post.title) : post.title;
         var authorBadge = '';
@@ -765,10 +740,10 @@ window.renderPostList = function(postsData, containerId, viewMode, currentBoardT
                 
             if (currentBoardType === 'free' || currentBoardType === 'test') imgHtml = ''; 
 
-            html = '<div data-post-id="' + post.id + '" role="button" tabindex="0" class="' + cardStyle + ' rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-lg mb-2 line-clamp-2 transition ' + titleColor + '">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col"><div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="' + cardStyle + ' rounded-xl shadow-sm hover:shadow-md transition flex flex-col h-full group overflow-hidden cursor-pointer">' + pinnedBadge + (currentBoardType!=='free' && currentBoardType!=='test' ? imgHtml : '') + '<div class="p-5 flex-grow flex flex-col"><div class="mb-1">' + versionBadge + '</div><h3 class="font-bold text-lg mb-2 line-clamp-2 transition ' + titleColor + '">' + safeTitle + '</h3><div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col"><div class="flex justify-between text-xs text-slate-500 dark:text-slate-400"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500 mt-2"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         } else {
             var iconClass = currentBoardType==='notice' ? 'fa-bullhorn text-blue-500' : 'fa-file-lines';
-            html = '<div data-post-id="' + post.id + '" role="button" tabindex="0" class="flex items-center p-4 ' + cardStyle + ' rounded-xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer group">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400 dark:text-slate-500"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold truncate transition ' + titleColor + '">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
+            html = '<div onclick="readPost(\'' + post.id + '\')" class="flex items-center p-4 ' + cardStyle + ' rounded-xl shadow-sm hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer group">' + pinnedBadge + '<div class="mr-4 w-10 text-center text-xl text-slate-400 dark:text-slate-500"><i class="fa-solid ' + iconClass + '"></i></div><div class="flex-grow min-w-0"><div class="flex items-center gap-2 mb-1">' + versionBadge + '<h3 class="font-bold truncate transition ' + titleColor + '">' + safeTitle + '</h3>' + (displayImg?'<i class="fa-regular fa-image text-slate-400 text-xs"></i>':'') + '</div><div class="flex items-center gap-4"><div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2"><span>' + (typeof escapeHtml === 'function' ? escapeHtml(post.author) : post.author) + authorBadge + ' ' + ipTag + '</span><span>' + post.date + '</span></div><div class="flex gap-3 text-xs text-slate-400 dark:text-slate-500"><span class="flex items-center"><i class="fa-regular fa-eye mr-1"></i> ' + (post.views||0) + '</span><span class="flex items-center"><i class="fa-regular fa-comments mr-1"></i> ' + cmtCount + '</span></div></div></div></div>';
         }
         container.innerHTML += html;
     });
@@ -1028,7 +1003,7 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
         contentHtml = 
             '<div class="comment-content-short text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + shortContent + '</div>' +
             '<div class="comment-content-full hidden text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>' +
-            '<button type="button" class="text-blue-500 dark:text-blue-400 text-xs font-bold mt-1 hover:underline btn-more-content" data-action="toggle-content">...더보기</button>';
+            '<button class="text-blue-500 dark:text-blue-400 text-xs font-bold mt-1 hover:underline btn-more-content" onclick="window.toggleCommentContent(this)">...더보기</button>';
     } else {
         contentHtml = '<div class="text-slate-600 dark:text-slate-300 text-sm mt-1 whitespace-pre-wrap break-all">' + content + '</div>';
     }
@@ -1045,10 +1020,10 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
                         '<span class="text-xs text-slate-400 dark:text-slate-500">' + new Date(node.created_at).toLocaleString() + '</span>' +
                     '</div>' +
                     '<div class="flex gap-2 opacity-0 group-hover:opacity-100 transition">' +
-                        '<button type="button" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold mr-2 btn-reply" data-reply-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '" data-reply-author="' + (typeof escapeHtml === 'function' ? escapeHtml(node.author) : node.author) + '"><i class="fa-solid fa-reply"></i> 답글</button>' +
-                        '<button type="button" class="text-slate-400 hover:text-red-500 text-xs font-bold mr-2 btn-comment-action" data-action="report" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-land-mine-on"></i> 신고</button>' +
-                        '<button type="button" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs btn-comment-action" data-action="password-check" data-mode="edit_comment" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-pen"></i></button>' +
-                        '<button type="button" class="text-slate-400 hover:text-red-600 text-xs btn-comment-action" data-action="password-check" data-mode="delete_comment" data-id="' + (typeof escapeHtml === 'function' ? escapeHtml(node.id) : node.id) + '"><i class="fa-solid fa-trash"></i></button>' +
+                        '<button onclick="replyToComment(\'' + node.id + '\', \'' + node.author + '\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold mr-2"><i class="fa-solid fa-reply"></i> 답글</button>' +
+                        '<button onclick="reportComment(\'' + node.id + '\')" class="text-slate-400 hover:text-red-500 text-xs font-bold mr-2"><i class="fa-solid fa-land-mine-on"></i> 신고</button>' +
+                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'edit_comment\')" class="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 text-xs"><i class="fa-solid fa-pen"></i></button>' +
+                        '<button onclick="requestPasswordCheck(\'' + node.id + '\', \'delete_comment\')" class="text-slate-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>' +
                     '</div>' +
                 '</div>' +
                 contentHtml + 
@@ -1069,49 +1044,6 @@ window.renderCommentNode = function(node, depth, listElement, isAdmin, parentAut
 window.renderComments = function(cmts, containerId, isAdmin) {
     var list = document.getElementById(containerId);
     if(!list) return;
-
-    if(!list._commentActionsHandlerAttached) {
-        list.addEventListener('click', function(e) {
-            var target = e.target;
-            if(!target || !target.closest) return;
-
-            var replyBtn = target.closest('button.btn-reply');
-            if(replyBtn) {
-                e.preventDefault();
-                var id = replyBtn.getAttribute('data-reply-id') || '';
-                var author = replyBtn.getAttribute('data-reply-author') || '';
-                if(typeof window.replyToComment === 'function') window.replyToComment(id, author);
-                return;
-            }
-
-            var moreBtn = target.closest('button.btn-more-content');
-            if(moreBtn) {
-                e.preventDefault();
-                if(typeof window.toggleCommentContent === 'function') window.toggleCommentContent(moreBtn);
-                return;
-            }
-
-            var actionBtn = target.closest('button.btn-comment-action');
-            if(actionBtn) {
-                e.preventDefault();
-                var action = actionBtn.getAttribute('data-action') || '';
-                var commentId = actionBtn.getAttribute('data-id') || '';
-                var mode = actionBtn.getAttribute('data-mode') || '';
-
-                if(action === 'report') {
-                    if(typeof window.reportComment === 'function') window.reportComment(commentId);
-                    return;
-                }
-
-                if(action === 'password-check') {
-                    if(typeof window.requestPasswordCheck === 'function') window.requestPasswordCheck(commentId, mode);
-                    return;
-                }
-            }
-        });
-        list._commentActionsHandlerAttached = true;
-    }
-
     list.innerHTML = '';
     
     var countEl = document.getElementById('detail-comments-count');
@@ -1240,15 +1172,7 @@ window.renderTopNotification = async function() {
     
     var container = document.createElement('div');
     container.className = 'flex items-center justify-center text-center';
-
-    var icon = document.createElement('i');
-    icon.className = 'fa-solid fa-bullhorn mr-2';
-
-    var textSpan = document.createElement('span');
-    textSpan.textContent = String(noticeText);
-
-    container.appendChild(icon);
-    container.appendChild(textSpan);
+    container.innerHTML = '<i class="fa-solid fa-bullhorn mr-2"></i><span>' + noticeText + '</span>';
     
     var closeBtn = document.createElement('button');
     closeBtn.className = 'ml-4 opacity-70 hover:opacity-100 transition flex-shrink-0';
@@ -1375,30 +1299,6 @@ function renderSearchResults(results, keyword) {
     }
     noResult.classList.add('hidden');
 
-    if (container && !container._postNavHandlerAttached) {
-        container.addEventListener('click', function(e) {
-            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
-            if (!card) return;
-            var postId = card.getAttribute('data-post-id');
-            if (!postId) return;
-            if (typeof window.readPost === 'function') {
-                window.readPost(String(postId));
-            }
-        });
-        container.addEventListener('keydown', function(e) {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            var card = e.target && e.target.closest ? e.target.closest('[data-post-id]') : null;
-            if (!card) return;
-            e.preventDefault();
-            var postId = card.getAttribute('data-post-id');
-            if (!postId) return;
-            if (typeof window.readPost === 'function') {
-                window.readPost(String(postId));
-            }
-        });
-        container._postNavHandlerAttached = true;
-    }
-
     const typeMap = {'free':'자유', 'error':'오류', 'notice':'공지', 'test':'테스트'};
     const typeColor = {
         'free':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', 
@@ -1435,7 +1335,7 @@ function renderSearchResults(results, keyword) {
         
         const badgeHtml = `<span class="text-[10px] px-2 py-0.5 rounded font-bold ${typeColor[post.type] || 'bg-gray-100 dark:bg-slate-800'}">${typeMap[post.type] || '기타'}</span>`;
 
-        container.innerHTML += `<div data-post-id="${post.id}" role="button" tabindex="0" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
+        container.innerHTML += `<div onclick="readPost('${post.id}')" class="bg-white dark:bg-black p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition cursor-pointer">
             <div class="flex items-center gap-2 mb-2">
                 ${badgeHtml}
                 <span class="text-xs text-slate-400 dark:text-slate-500">${new Date(post.created_at).toLocaleDateString()}</span>
