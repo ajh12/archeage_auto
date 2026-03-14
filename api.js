@@ -222,6 +222,48 @@ async function fetchPosts(type, page = 1) {
     if(spinner) spinner.classList.add('hidden');
 }
 
+async function incrementPostViews(dbClient, id) {
+    let lastError = null;
+
+    try {
+        const { error } = await dbClient.rpc('increment_views', { row_id: id });
+        if (!error) return { ok: true, method: 'rpc_row_id' };
+        lastError = error;
+    } catch (e) {
+        lastError = e;
+    }
+
+    try {
+        const { error } = await dbClient.rpc('increment_views', { p_id: id });
+        if (!error) return { ok: true, method: 'rpc_p_id' };
+        lastError = error;
+    } catch (e) {
+        lastError = e;
+    }
+
+    try {
+        const { data: row, error: readError } = await dbClient
+            .from('posts')
+            .select('views')
+            .eq('id', id)
+            .single();
+        if (readError) throw readError;
+
+        const currentViews = Number(row && row.views);
+        const nextViews = (Number.isFinite(currentViews) ? currentViews : 0) + 1;
+        const { error: updateError } = await dbClient
+            .from('posts')
+            .update({ views: nextViews })
+            .eq('id', id);
+        if (!updateError) return { ok: true, method: 'direct_update' };
+        lastError = updateError;
+    } catch (e) {
+        lastError = e;
+    }
+
+    return { ok: false, error: lastError };
+}
+
 async function readPost(id, directData = null) {
     const dbClient = getDbClient();
     localStorage.setItem('aa_current_post_id', id);
@@ -236,16 +278,16 @@ async function readPost(id, directData = null) {
     const viewedKey = `viewed_post_${id}_${getClientIP() || 'unknown'}`;
     
     if(dbClient && !localStorage.getItem(viewedKey)) {
-        try {
-            const { error } = await dbClient.rpc('increment_views', { row_id: id });
-            if(!error) {
-                const targetPost = posts.find(p => p.id == id);
-                if (targetPost) {
-                    targetPost.views = (targetPost.views || 0) + 1;
-                }
-                localStorage.setItem(viewedKey, 'true'); 
+        const incrementResult = await incrementPostViews(dbClient, id);
+        if (incrementResult.ok) {
+            const targetPost = posts.find(p => p.id == id);
+            if (targetPost) {
+                targetPost.views = (targetPost.views || 0) + 1;
             }
-        } catch (e) {}
+            localStorage.setItem(viewedKey, 'true');
+        } else {
+            console.warn('[views] increment failed', { id, error: incrementResult.error });
+        }
     }
     
     let post = directData; 
